@@ -39,8 +39,9 @@
 //
 // integer atom type:
 //
-//	a base-10 or base-16 integer value of arbitrary length
+//	a base-10 or base-16 integer value of 64-bit length
 //	may start with optional '-' to indicate negative value
+//	may end with optional 'u' suffix to indicate unsigned value
 //	integers contain only allowable digit characters depending on the base
 //	no extra formatting-related ('_'), division (','), or white-space characters are allowed
 //	any number of leading zeros are allowed and *do not* signify base-8

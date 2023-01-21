@@ -40,8 +40,9 @@
 // integer atom type:
 //
 //	a base-10 or base-16 integer value of 64-bit length
-//	may start with optional '-' to indicate negative value
-//	may end with optional 'u' suffix to indicate unsigned value
+//	may start with optional '-' to indicate signed type and negative value
+//	or may start with '+' suffix to indicate unsigned type and positive value
+//	if starts with neither '-' nor '+' then type is signed and value is positive
 //	integers contain only allowable digit characters depending on the base
 //	no extra formatting-related ('_'), division (','), or white-space characters are allowed
 //	any number of leading zeros are allowed and *do not* signify base-8
@@ -52,10 +53,12 @@
 //	base-16 integer cannot contain upper-case 'A'..'F' so as to simplify encoding and decoding logic
 //
 //	examples:
-//		  `-1024`  = -1024
-//		`0001023`  =  1023
-//		   `1023`  =  1023
-//		   `$3ff`  =  1023
+//		  `-1024`  =   int64(-1024)
+//		`0001023`  =   int64( 1023)
+//		   `1023`  =   int64( 1023)
+//		   `$3ff`  =   int64( 1023)
+//		  `+$3ff`  =  uint64( 1023)
+//		  `+1023`  =  uint64( 1023)
 //
 // token atom type:
 //

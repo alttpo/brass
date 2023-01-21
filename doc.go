@@ -14,8 +14,8 @@
 //
 // s-expression examples:
 //
-//	(test_exp abc d.e.f/gh snake_case nil true false #616263# ^3#616263#)
-//	(^$a#0102030405060708090a# 1023 $3ff)
+//	(test_exp abc d.e.f/gh snake_case nil true false #3$616263)
+//	(#a$0102030405060708090a 1023 $3ff)
 //	("abc\ndef\t\"123\"\x00\xff" () ^5"12345")
 //	((a 1) (b 2) (c 3) (d nil) (e false))
 //
@@ -41,7 +41,7 @@
 //
 //	a base-10 or base-16 integer value of 64-bit length
 //	may start with optional '-' to indicate signed type and negative value
-//	or may start with '+' suffix to indicate unsigned type and positive value
+//	or may start with '+' to indicate unsigned type and positive value
 //	if starts with neither '-' nor '+' then type is signed and value is positive
 //	integers contain only allowable digit characters depending on the base
 //	no extra formatting-related ('_'), division (','), or white-space characters are allowed
@@ -81,7 +81,8 @@
 // hex-octets atom type:
 //
 //	leading '#' followed by <hex-digit>+ to specify the decoded data length
-//	followed by '$' to separate length from data
+//	followed by '$' and then <hex-digit>* to separate length from data
+//	if size is zero then must end in only '$' with no hex-digits after
 //	encodes an array of octets with each octet described in hexadecimal
 //	only hex-digits may appear after '$'
 //	no white-space or other characters allowed to simplify encoding and decoding logic

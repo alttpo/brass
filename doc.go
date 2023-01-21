@@ -24,9 +24,9 @@
 //	nil
 //	bool
 //	integer
-//	token
-//	hex-string
-//	quoted-string
+//	token-octets
+//	hex-octets
+//	quoted-octets
 //	list
 //
 // nil atom type:
@@ -60,7 +60,7 @@
 //		  `+$3ff`  =  uint64( 1023)
 //		  `+1023`  =  uint64( 1023)
 //
-// token atom type:
+// token-octets atom type:
 //
 //	alpha-numeric identifier of arbitrary length without white-space
 //	may begin with one optional '@' to escape reserved keywords like "nil", "true", "false"
@@ -78,26 +78,22 @@
 //	  `@true`
 //	  `@nil`
 //
-// hex-string atom type:
+// hex-octets atom type:
 //
-//	optionally starts with a leading '^' followed by <integer> to specify the decoded data length
-//	leading '#' and trailing '#'
-//	encodes an octet-string with each octet described in hexadecimal with 2*n hex-digits (n >= 0)
-//	only hex-digits may appear between leading '#' and trailing '#'
+//	leading '#' followed by <hex-digit>+ to specify the decoded data length
+//	followed by '$' to separate length from data
+//	encodes an array of octets with each octet described in hexadecimal
+//	only hex-digits may appear after '$'
 //	no white-space or other characters allowed to simplify encoding and decoding logic
 //	octets are encoded as 2 hex digits in sequence, most significant digit first followed by least significant
-//	if an odd number of hex-digits is encountered, the last digit is assumed to be the most-significant digit
-//	of a 2-digit octet and the least-significant digit is assumed to be 0.
+//	only exact number of 2*length hex digits are expected after '$'
 //
 //	examples:
-//	  `#616263#`
-//	  `#001022#`
-//	  `^3#616263#`
-//	  `^$a#0102030405060708090a#`
+//	  `#3$616263`
+//	  `#a$0102030405060708090a`
 //
-// quoted-string atom type:
+// quoted-octets atom type:
 //
-//	optionally starts with a leading '^' followed by <integer> to specify the decoded data length
 //	leading '"' and trailing '"'
 //	may contain any ASCII and non-ASCII character except '"', '\r', '\n'
 //	a '\' is treated as the start of an escape sequence followed by one of:
@@ -110,11 +106,11 @@
 //
 //	examples:
 //	  "abc\ndef\t\"123\"\x00\xff"
-//	  ^5"12345"
+//	  "12345"
 //
 // BNF:
 //
-//	<sexpr>           :: <nil> | <bool> | <integer> | <token> | <string> | <list> ;
+//	<sexpr>           :: <nil> | <bool> | <integer> | <token> | <octets> | <list> ;
 //
 //	<list>            :: "(" ( <sexpr> | <whitespace> )* ")" ;
 //
@@ -132,12 +128,11 @@
 //	<hexadecimal>     :: "$" <hex-digit>+ ;
 //	<hex-digit>       :: <decimal-digit> | "a" | ... | "f" ;
 //
-//	<string>          :: ( "^" <integer> )? <data-string> ;
-//	<data-string>     :: <hex-string> | <quoted-string> ;
+//	<octets>          :: <hex-octets> | <quoted-octets> ;
 //
-//	<hex-string>      :: "#" <hex-digit>* "#" ;
+//	<hex-octets>      :: "#" <hex-digit>+ "$" <hex-digit>* ;
 //
-//	<quoted-string>   :: "\"" ( <quoted-char> | <quoted-escape> )* "\"" ;
+//	<quoted-octets>   :: "\"" ( <quoted-char> | <quoted-escape> )* "\"" ;
 //	<quoted-char>     :: [any 8-bit char except "\"", "\\", "\r", "\n"] ;
 //	<quoted-escape>   :: "\\" ( <escape-single> | <escape-hex> ) ;
 //	<escape-single>   :: "\\" | "\"" | "n" | "r" | "t" ;

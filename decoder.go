@@ -94,6 +94,10 @@ func (d *Decoder) decodeNode() (e *SExpr, err error) {
 			e, err = d.decodeList()
 			return
 		}
+		if c == '#' {
+			e, err = d.decodeHexOctets()
+			return
+		}
 		if c == '@' || isTokenStart(c) {
 			err = d.s.UnreadByte()
 			if err != nil {
@@ -205,7 +209,7 @@ func (d *Decoder) decodeIntB16(negate bool, unsigned bool) (e *SExpr, err error)
 		}
 
 		// only allow hex digits:
-		if ('0' <= c && c <= '9') || ('a' <= c && c <= 'f') {
+		if isHexDigit(c) {
 			b.WriteByte(c)
 			continue
 		}
@@ -239,6 +243,10 @@ func (d *Decoder) decodeIntB16(negate bool, unsigned bool) (e *SExpr, err error)
 			return
 		}
 	}
+}
+
+func isHexDigit(c byte) bool {
+	return ('0' <= c && c <= '9') || ('a' <= c && c <= 'f')
 }
 
 func isTokenStart(c byte) bool {
@@ -336,4 +344,78 @@ func (d *Decoder) decodeToken() (e *SExpr, err error) {
 		}
 		return
 	}
+}
+
+func (d *Decoder) decodeHexOctets() (e *SExpr, err error) {
+	// parse hex digits up to '$' as size:
+	sizeB := bytes.Buffer{}
+	var c byte
+	for {
+		c, err = d.s.ReadByte()
+		if err != nil {
+			return
+		}
+		if c == '$' {
+			break
+		}
+		if isHexDigit(c) {
+			sizeB.WriteByte(c)
+			continue
+		}
+
+		err = ErrUnexpectedCharacter
+		return
+	}
+
+	// parse the first hex digits as a size of octets to parse:
+	var size uint64
+	size, err = strconv.ParseUint(sizeB.String(), 16, 64)
+	if err != nil {
+		return
+	}
+
+	// pre-allocate the buffer exactly sized:
+	data := bytes.NewBuffer(make([]byte, 0, size))
+
+	// parse hex digits as octets in pairs:
+	for i := uint64(0); i < size; i++ {
+		var b byte = 0
+
+		// read first digit:
+		c, err = d.s.ReadByte()
+		if err != nil {
+			return
+		}
+		if '0' <= c && c <= '9' {
+			b = (c - '0') << 4
+		} else if 'a' <= c && c <= 'f' {
+			b = (c - 'a' + 10) << 4
+		} else {
+			err = ErrUnexpectedCharacter
+			return
+		}
+
+		// read second digit:
+		c, err = d.s.ReadByte()
+		if err != nil {
+			return
+		}
+		if '0' <= c && c <= '9' {
+			b |= c - '0'
+		} else if 'a' <= c && c <= 'f' {
+			b |= c - 'a' + 10
+		} else {
+			err = ErrUnexpectedCharacter
+			return
+		}
+
+		// append to data slice:
+		data.WriteByte(b)
+	}
+
+	e = &SExpr{
+		kind:   KindOctetsHex,
+		octets: data.Bytes(),
+	}
+	return
 }

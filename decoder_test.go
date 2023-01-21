@@ -294,6 +294,39 @@ func TestDecoder_Decode(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		// hex-octets
+		{
+			name: "(#1$00)",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(#1$00)")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:   KindOctetsHex,
+						octets: []byte("\x00"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "(#5$fffefdfcfb)",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(#5$fffefdfcfb)")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:   KindOctetsHex,
+						octets: []byte("\xff\xfe\xfd\xfc\xfb"),
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

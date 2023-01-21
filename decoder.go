@@ -94,7 +94,17 @@ func (d *Decoder) decodeNode() (e *SExpr, err error) {
 			e, err = d.decodeList()
 			return
 		}
+		if c == '@' || isTokenStart(c) {
+			err = d.s.UnreadByte()
+			if err != nil {
+				return
+			}
 
+			e, err = d.decodeToken()
+			return
+		}
+
+		// only integer parsing beyond this point:
 		negate := false
 		unsigned := false
 		if c == '-' {
@@ -228,5 +238,102 @@ func (d *Decoder) decodeIntB16(negate bool, unsigned bool) (e *SExpr, err error)
 			}
 			return
 		}
+	}
+}
+
+func isTokenStart(c byte) bool {
+	if 'a' <= c && c <= 'z' {
+		return true
+	}
+	if 'A' <= c && c <= 'Z' {
+		return true
+	}
+	if c == '_' || c == '.' || c == '/' || c == '?' || c == '!' {
+		return true
+	}
+	if c >= 128 {
+		return true
+	}
+	return false
+}
+
+func isTokenRemainder(c byte) bool {
+	if 'a' <= c && c <= 'z' {
+		return true
+	}
+	if 'A' <= c && c <= 'Z' {
+		return true
+	}
+	if '0' <= c && c <= '9' {
+		return true
+	}
+	if c == '_' || c == '.' || c == '/' || c == '?' || c == '!' {
+		return true
+	}
+	if c >= 128 {
+		return true
+	}
+	return false
+}
+
+func (d *Decoder) decodeToken() (e *SExpr, err error) {
+	isEscaped := false
+	b := bytes.Buffer{}
+
+	var c byte
+	c, err = d.s.ReadByte()
+	if err != nil {
+		return
+	}
+	if c == '@' {
+		isEscaped = true
+		c, err = d.s.ReadByte()
+		if err != nil {
+			return
+		}
+	}
+	if !isTokenStart(c) {
+		err = ErrUnexpectedCharacter
+		return
+	}
+	err = d.s.UnreadByte()
+	if err != nil {
+		return
+	}
+
+	for {
+		c, err = d.s.ReadByte()
+		if err != nil {
+			return
+		}
+
+		if isTokenRemainder(c) {
+			b.WriteByte(c)
+			continue
+		}
+
+		err = d.s.UnreadByte()
+		if err != nil {
+			return
+		}
+
+		if !isEscaped {
+			s := b.String()
+			if s == "nil" {
+				e = &SExpr{kind: KindNil}
+				return
+			} else if s == "true" {
+				e = &SExpr{kind: KindBool, integer: -1}
+				return
+			} else if s == "false" {
+				e = &SExpr{kind: KindBool, integer: 0}
+				return
+			}
+		}
+		e = &SExpr{
+			kind:   KindOctetsToken,
+			octets: b.Bytes(),
+		}
+		return
 	}
 }

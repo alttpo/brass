@@ -17,6 +17,7 @@ func TestDecoder_Decode(t *testing.T) {
 		wantE   *SExpr
 		wantErr bool
 	}{
+		// lists:
 		{
 			name: "()",
 			fields: fields{
@@ -25,6 +26,46 @@ func TestDecoder_Decode(t *testing.T) {
 			wantE: &SExpr{
 				kind: KindList,
 				list: []*SExpr{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "(())",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(())")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind: KindList,
+						list: []*SExpr{},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "(()()())",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(()()())")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind: KindList,
+						list: []*SExpr{},
+					},
+					{
+						kind: KindList,
+						list: []*SExpr{},
+					},
+					{
+						kind: KindList,
+						list: []*SExpr{},
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -50,6 +91,7 @@ func TestDecoder_Decode(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		// integers:
 		{
 			name: "(1023 $3ff -1024 +$3ff +1023)",
 			fields: fields{
@@ -117,6 +159,136 @@ func TestDecoder_Decode(t *testing.T) {
 					{
 						kind:    KindUInt64B16,
 						integer: 0x0010,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		// tokens:
+		{
+			name: "(a)",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(a)")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("a"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "(. _ / ? !)",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(. _ / ? !)")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("."),
+					},
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("_"),
+					},
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("/"),
+					},
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("?"),
+					},
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("!"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "(a/b c_d e? f! g.h)",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(a/b c_d e? f! g.h)")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("a/b"),
+					},
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("c_d"),
+					},
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("e?"),
+					},
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("f!"),
+					},
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("g.h"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		// nil
+		{
+			name: "(nil @nil)",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(nil @nil)")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind: KindNil,
+					},
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("nil"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		// bool
+		{
+			name: "(true false @true @false)",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(true false @true @false)")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:    KindBool,
+						integer: -1,
+					},
+					{
+						kind:    KindBool,
+						integer: 0,
+					},
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("true"),
+					},
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("false"),
 					},
 				},
 			},

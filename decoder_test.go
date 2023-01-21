@@ -82,6 +82,46 @@ func TestDecoder_Decode(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "(+$ffffffffffffffff)",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(+$ffffffffffffffff)")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:    KindUInt64B16,
+						integer: -1,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "(+$ffffff +$7e0010 +$0010)",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(+$ffffff +$7e0010 +$0010)")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:    KindUInt64B16,
+						integer: 0xffffff,
+					},
+					{
+						kind:    KindUInt64B16,
+						integer: 0x7e0010,
+					},
+					{
+						kind:    KindUInt64B16,
+						integer: 0x0010,
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

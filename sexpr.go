@@ -1,5 +1,10 @@
 package brass
 
+import (
+	"fmt"
+	"strings"
+)
+
 type Kind int
 
 const (
@@ -137,4 +142,88 @@ func (e *SExpr) SetUInt64B16(value uint64) {
 	e.reset()
 	e.kind = KindUInt64B16
 	e.integer = int64(value)
+}
+
+func (e *SExpr) String() string {
+	sb := strings.Builder{}
+	e.appendString(&sb)
+	return sb.String()
+}
+
+func (e *SExpr) appendString(sb *strings.Builder) {
+	switch e.kind {
+	case KindNil:
+		sb.WriteString("nil")
+		return
+	case KindBool:
+		if e.integer != 0 {
+			sb.WriteString("true")
+		} else {
+			sb.WriteString("false")
+		}
+		return
+	case KindInt64B10:
+		fmt.Fprintf(sb, "%d", e.integer)
+		return
+	case KindInt64B16:
+		if e.integer < 0 {
+			fmt.Fprintf(sb, "-$%x", -e.integer)
+		} else {
+			fmt.Fprintf(sb, "$%x", e.integer)
+		}
+		return
+	case KindUInt64B10:
+		fmt.Fprintf(sb, "%d", uint64(e.integer))
+		return
+	case KindUInt64B16:
+		fmt.Fprintf(sb, "$%x", uint64(e.integer))
+		return
+	case KindOctetsHex:
+		sb.WriteByte('#')
+		fmt.Fprintf(sb, "%x", len(e.octets))
+		sb.WriteByte('$')
+		for _, b := range e.octets {
+			fmt.Fprintf(sb, "%02x", b)
+		}
+		return
+	case KindOctetsQuoted:
+		sb.WriteByte('"')
+		for _, b := range e.octets {
+			if b == '\\' {
+				sb.WriteString("\\\\")
+			} else if b == '"' {
+				sb.WriteString("\\\"")
+			} else if b == '\r' {
+				sb.WriteString("\\r")
+			} else if b == '\n' {
+				sb.WriteString("\\n")
+			} else if b == '\t' {
+				sb.WriteString("\\t")
+			} else if b < 32 {
+				fmt.Fprintf(sb, "\\x%02x", b)
+			} else if b >= 128 {
+				fmt.Fprintf(sb, "\\x%02x", b)
+			} else {
+				sb.WriteByte(b)
+			}
+		}
+		sb.WriteByte('"')
+		return
+	case KindOctetsToken:
+		// TODO: verify characters?
+		sb.Write(e.octets)
+		return
+	case KindList:
+		sb.WriteByte('(')
+		for i, c := range e.list {
+			if i > 0 {
+				sb.WriteByte(' ')
+			}
+			c.appendString(sb)
+		}
+		sb.WriteByte(')')
+		return
+	default:
+		panic(fmt.Errorf("unimplemented kind"))
+	}
 }

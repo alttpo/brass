@@ -98,6 +98,10 @@ func (d *Decoder) decodeNode() (e *SExpr, err error) {
 			e, err = d.decodeHexOctets()
 			return
 		}
+		if c == '"' {
+			e, err = d.decodeQuotedOctets()
+			return
+		}
 		if c == '@' || isTokenStart(c) {
 			err = d.s.UnreadByte()
 			if err != nil {
@@ -379,33 +383,9 @@ func (d *Decoder) decodeHexOctets() (e *SExpr, err error) {
 
 	// parse hex digits as octets in pairs:
 	for i := uint64(0); i < size; i++ {
-		var b byte = 0
-
-		// read first digit:
-		c, err = d.s.ReadByte()
+		var b byte
+		b, err = d.readHexByte()
 		if err != nil {
-			return
-		}
-		if '0' <= c && c <= '9' {
-			b = (c - '0') << 4
-		} else if 'a' <= c && c <= 'f' {
-			b = (c - 'a' + 10) << 4
-		} else {
-			err = ErrUnexpectedCharacter
-			return
-		}
-
-		// read second digit:
-		c, err = d.s.ReadByte()
-		if err != nil {
-			return
-		}
-		if '0' <= c && c <= '9' {
-			b |= c - '0'
-		} else if 'a' <= c && c <= 'f' {
-			b |= c - 'a' + 10
-		} else {
-			err = ErrUnexpectedCharacter
 			return
 		}
 
@@ -416,6 +396,93 @@ func (d *Decoder) decodeHexOctets() (e *SExpr, err error) {
 	e = &SExpr{
 		kind:   KindOctetsHex,
 		octets: data.Bytes(),
+	}
+	return
+}
+
+func (d *Decoder) readHexByte() (b byte, err error) {
+	b = 0
+
+	// read first digit:
+	var c byte
+	c, err = d.s.ReadByte()
+	if err != nil {
+		return
+	}
+	if '0' <= c && c <= '9' {
+		b = (c - '0') << 4
+	} else if 'a' <= c && c <= 'f' {
+		b = (c - 'a' + 10) << 4
+	} else {
+		err = ErrUnexpectedCharacter
+		return
+	}
+
+	// read second digit:
+	c, err = d.s.ReadByte()
+	if err != nil {
+		return
+	}
+	if '0' <= c && c <= '9' {
+		b |= c - '0'
+	} else if 'a' <= c && c <= 'f' {
+		b |= c - 'a' + 10
+	} else {
+		err = ErrUnexpectedCharacter
+		return
+	}
+	return
+}
+
+func (d *Decoder) decodeQuotedOctets() (e *SExpr, err error) {
+	b := bytes.Buffer{}
+
+	var c byte
+	for {
+		c, err = d.s.ReadByte()
+		if err != nil {
+			return
+		}
+
+		if c == '"' {
+			break
+		}
+
+		if c == '\\' {
+			c, err = d.s.ReadByte()
+			if err != nil {
+				return
+			}
+
+			if c == '\\' {
+				b.WriteByte('\\')
+			} else if c == '"' {
+				b.WriteByte('"')
+			} else if c == 'r' {
+				b.WriteByte('\r')
+			} else if c == 'n' {
+				b.WriteByte('\n')
+			} else if c == 't' {
+				b.WriteByte('\t')
+			} else if c == 'x' {
+				var x byte
+				x, err = d.readHexByte()
+				if err != nil {
+					return
+				}
+
+				b.WriteByte(x)
+			}
+
+			continue
+		}
+
+		b.WriteByte(c)
+	}
+
+	e = &SExpr{
+		kind:   KindOctetsQuoted,
+		octets: b.Bytes(),
 	}
 	return
 }

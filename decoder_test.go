@@ -327,6 +327,39 @@ func TestDecoder_Decode(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		// quoted-octets
+		{
+			name: `("")`,
+			fields: fields{
+				s: bytes.NewBuffer([]byte(`("")`)),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:   KindOctetsQuoted,
+						octets: nil,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: `("abc\r\n\t\xff123\\[]\"x")`,
+			fields: fields{
+				s: bytes.NewBuffer([]byte(`("abc\r\n\t\xff123\\[]\"x")`)),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:   KindOctetsQuoted,
+						octets: []byte("abc\r\n\t\xff123\\[]\"x"),
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

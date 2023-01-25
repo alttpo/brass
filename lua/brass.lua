@@ -1,16 +1,8 @@
 
 local decode_list
 
-local function decode_token(s, ms)
-    local me = s:match('^[@%u%l_%./%?!][%u%l%d_%./%?!]*()', ms)
-    if me == nil then
-        return nil, ms, { err = 'unrecognized brass s-expression' }
-    end
-    return s:sub(ms, me-1), me, nil
-end
-
 local function decode_atom(s, ms)
-    local m
+    local m, me
 
     -- check if start of list:
     m = s:match('^()[%(]', ms)
@@ -18,24 +10,37 @@ local function decode_atom(s, ms)
         return decode_list(s, m)
     end
 
-    -- check for token start:
-    m = s:match('^()[@%u%l_%./%?!]', ms)
-    if m ~= nil then
-        return decode_token(s, m)
+    -- check for token:
+    me = s:match('^[@%u%l_%./%?!][%u%l%d_%./%?!]*()', ms)
+    if me ~= nil then
+        local tok = s:sub(ms, me-1)
+        if tok:sub(1,1) == '@' then
+            -- escaped token:
+            return tok:sub(2), me, nil
+        elseif tok == 'nil' then
+            return nil, me, nil
+        elseif tok == 'true' then
+            return true, me, nil
+        elseif tok == 'false' then
+            return false, me, nil
+        else
+            -- regular token:
+            return tok, me, nil
+        end
     end
 
     return nil, ms, { err = 'unrecognized brass s-expression' }
 end
 
-local function decode_list(s, ms)
+decode_list = function (s, ms)
     -- find balanced ( and ) positions:
-    local ls, le = s:match('^()%b()()', ms)
+    local le = s:match('^%b()()', ms)
     if le == nil then
         return nil, ms, { err = 'could not find end of list' }
     end
 
     local l = {}
-    ms = ls+1
+    ms = ms + 1
     while ms <= le do
         -- skip whitespace
         local we = s:match('^[% %\t]*()', ms)

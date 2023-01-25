@@ -23,6 +23,22 @@ func TestLuaDecoder(t *testing.T) {
 			wantN:   list(octets([]byte("a"))),
 		},
 		{
+			name:    "(nil true false)",
+			nstr:    "(nil true false)",
+			wantErr: "",
+			wantN:   list(lua.LNil, lua.LTrue, lua.LFalse),
+		},
+		{
+			name:    "(@nil @true @false)",
+			nstr:    "(@nil @true @false)",
+			wantErr: "",
+			wantN: list(
+				octets([]byte("nil")),
+				octets([]byte("true")),
+				octets([]byte("false")),
+			),
+		},
+		{
 			name:    "(a b c)",
 			nstr:    "(a b c)",
 			wantErr: "",

@@ -47,6 +47,31 @@ local function decode_atom(s, ms)
         end
     end
 
+    -- check for hex-octets:
+    me = s:match('^#[0-9a-f]+%$()', ms)
+    if me ~= nil then
+        -- parse length in hex:
+        local len = tonumber(s:sub(ms+1, me-2), 16)
+
+        -- extract hex digits:
+        local he = me-1+len*2
+        if he > #s then
+            return nil, ms, { err = 'hex-octet sequence length incorrect' }
+        end
+
+        -- build string of bytes:
+        local l = {}
+        for i = 0,len-1 do
+            local ok, x = pcall(tonumber, s:sub(me+i*2,me+i*2+1), 16)
+            if not ok then
+                return nil, me+i*2, { err = x }
+            end
+            l[#l+1] = string.char(x)
+        end
+
+        return table.concat(l), he+1, nil
+    end
+
     return nil, ms, { err = 'unrecognized brass s-expression' }
 end
 
@@ -67,7 +92,7 @@ decode_list = function (s, ms)
         end
 
         -- end of list?
-        if s:match('^[%)]', ms) == ')' then
+        if s:sub(ms, ms) == ')' then
             return l, ms+1, nil
         end
 

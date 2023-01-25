@@ -1,8 +1,10 @@
 package lua
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/yuin/gopher-lua"
+	"math/rand"
 	"reflect"
 	"strings"
 	"testing"
@@ -59,6 +61,25 @@ func TestLuaDecoder(t *testing.T) {
 				lua.LNumber(-4),
 			),
 		},
+		{
+			name:    "(#1$61)",
+			nstr:    "(#1$61)",
+			wantErr: "",
+			wantN:   list(octets([]byte{0x61})),
+		},
+		func() test {
+			// fill a buffer with random bytes:
+			large := make([]byte, 256)
+			rand.Read(large)
+
+			// generate a test case to match those random bytes encoded as hex-octets:
+			return test{
+				name:    "large hex-octets",
+				nstr:    fmt.Sprintf("(#%x$%s)", len(large), hex.EncodeToString(large)),
+				wantErr: "",
+				wantN:   list(octets(large)),
+			}
+		}(),
 	}
 
 	l := lua.NewState(lua.Options{})

@@ -13,19 +13,37 @@ local function decode_atom(s, ms)
     -- check for token:
     me = s:match('^[@%u%l_%./%?!][%u%l%d_%./%?!]*()', ms)
     if me ~= nil then
-        local tok = s:sub(ms, me-1)
-        if tok:sub(1,1) == '@' then
+        local v = s:sub(ms, me-1)
+        if v:sub(1,1) == '@' then
             -- escaped token:
-            return tok:sub(2), me, nil
-        elseif tok == 'nil' then
+            return v:sub(2), me, nil
+        elseif v == 'nil' then
             return nil, me, nil
-        elseif tok == 'true' then
+        elseif v == 'true' then
             return true, me, nil
-        elseif tok == 'false' then
+        elseif v == 'false' then
             return false, me, nil
         else
             -- regular token:
-            return tok, me, nil
+            return v, me, nil
+        end
+    end
+
+    -- check for decimal integer:
+    me = s:match('^%-?%d+()', ms)
+    if me ~= nil then
+        local v = s:sub(ms, me-1)
+        return tonumber(v, 10), me, nil
+    end
+
+    -- check for hexadecimal integer:
+    me = s:match('^%-?%$[0-9a-f]+()', ms)
+    if me ~= nil then
+        local v = s:sub(ms, me-1)
+        if v:sub(1,1) == '-' then
+            return -tonumber(v:sub(3), 16), me, nil
+        else
+            return tonumber(v:sub(2), 16), me, nil
         end
     end
 

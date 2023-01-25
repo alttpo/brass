@@ -48,6 +48,17 @@ func TestLuaDecoder(t *testing.T) {
 				octets([]byte("c")),
 			),
 		},
+		{
+			name:    "(1 $2 -$3 -4)",
+			nstr:    "(1 $2 -$3 -4)",
+			wantErr: "",
+			wantN: list(
+				lua.LNumber(1),
+				lua.LNumber(2),
+				lua.LNumber(-3),
+				lua.LNumber(-4),
+			),
+		},
 	}
 
 	l := lua.NewState(lua.Options{})

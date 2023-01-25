@@ -80,9 +80,24 @@ func TestLuaDecoder(t *testing.T) {
 				wantN:   list(octets(large)),
 			}
 		}(),
+		func() test {
+			// fill a buffer with random bytes:
+			huge := make([]byte, 32768)
+			rand.Read(huge)
+
+			// generate a test case to match those random bytes encoded as hex-octets:
+			return test{
+				name:    "huge hex-octets",
+				nstr:    fmt.Sprintf("(#%x$%s)", len(huge), hex.EncodeToString(huge)),
+				wantErr: "",
+				wantN:   list(octets(huge)),
+			}
+		}(),
 	}
 
-	l := lua.NewState(lua.Options{})
+	l := lua.NewState(lua.Options{
+		RegistryMaxSize: 65536 * 4,
+	})
 	defer l.Close()
 
 	// load the tests.lua file:

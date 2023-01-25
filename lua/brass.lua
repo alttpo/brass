@@ -62,14 +62,11 @@ local function decode_atom(s, ms)
         -- build string of bytes:
         local l = {}
         for i = 0,len-1 do
-            local ok, x = pcall(tonumber, s:sub(me+i*2,me+i*2+1), 16)
-            if not ok then
-                return nil, me+i*2, { err = x }
-            end
-            l[#l+1] = string.char(x)
+            l[#l+1] = tonumber(s:sub(me,me+1), 16)
+            me = me + 2
         end
 
-        return table.concat(l), he+1, nil
+        return string.char(unpack(l)), me, nil
     end
 
     return nil, ms, { err = 'unrecognized brass s-expression' }

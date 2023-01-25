@@ -96,6 +96,7 @@ func TestLuaDecoder(t *testing.T) {
 	}
 
 	l := lua.NewState(lua.Options{
+		RegistrySize:    65536 * 4,
 		RegistryMaxSize: 65536 * 4,
 	})
 	defer l.Close()

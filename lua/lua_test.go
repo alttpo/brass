@@ -25,6 +25,21 @@ func TestLuaDecoder(t *testing.T) {
 			wantN:   list(octets([]byte("a"))),
 		},
 		{
+			name:    "(a/b c.1 d2 ? / . _ !)",
+			nstr:    "(a/b c.1 d2 ? / . _ !)",
+			wantErr: "",
+			wantN: list(
+				octets([]byte("a/b")),
+				octets([]byte("c.1")),
+				octets([]byte("d2")),
+				octets([]byte("?")),
+				octets([]byte("/")),
+				octets([]byte(".")),
+				octets([]byte("_")),
+				octets([]byte("!")),
+			),
+		},
+		{
 			name:    "(nil true false)",
 			nstr:    "(nil true false)",
 			wantErr: "",
@@ -60,6 +75,12 @@ func TestLuaDecoder(t *testing.T) {
 				lua.LNumber(-3),
 				lua.LNumber(-4),
 			),
+		},
+		{
+			name:    "(#0$a)",
+			nstr:    "(#0$a)",
+			wantErr: "",
+			wantN:   list(octets([]byte{}), octets([]byte{0x61})),
 		},
 		{
 			name:    "(#1$61)",

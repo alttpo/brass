@@ -67,6 +67,30 @@ func TestLuaDecoder(t *testing.T) {
 			wantErr: "",
 			wantN:   list(octets([]byte{0x61})),
 		},
+		{
+			name:    `("")`,
+			nstr:    `("")`,
+			wantErr: "",
+			wantN:   list(octets([]byte{})),
+		},
+		{
+			name:    `("a")`,
+			nstr:    `("a")`,
+			wantErr: "",
+			wantN:   list(octets([]byte{0x61})),
+		},
+		{
+			name:    `("\x61")`,
+			nstr:    `("\x61")`,
+			wantErr: "",
+			wantN:   list(octets([]byte{0x61})),
+		},
+		{
+			name:    `("cb\x61\r\n\tq")`,
+			nstr:    `("cb\x61\r\n\tq")`,
+			wantErr: "",
+			wantN:   list(octets([]byte("cb\x61\r\n\tq"))),
+		},
 		func() test {
 			// fill a buffer with random bytes:
 			large := make([]byte, 256)

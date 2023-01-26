@@ -69,6 +69,51 @@ local function decode_atom(s, ms)
         return string.char(unpack(l)), me, nil
     end
 
+    -- check for quoted-octets:
+    if s:sub(ms, ms) == '"' then
+        ms = ms + 1
+        local l = {}
+        while ms <= #s do
+            me = s:match('^[^"\\]+()', ms)
+            if me ~= nil then
+                l[#l+1] = s:sub(ms,me-1)
+            else
+                me = ms
+            end
+
+            local ec = s:sub(me,me)
+            if ec == '"' then
+                return table.concat(l), me+1, nil
+            elseif ec == '\\' then
+                -- handle escapes:
+                ms = me + 1
+                local hx = s:match('x([0-9a-f][0-9a-f])', ms)
+                if hx ~= nil then
+                    ms = ms + 3
+                    l[#l+1] = string.char(tonumber(hx,16))
+                else
+                    ec = s:sub(ms,ms)
+                    if ec == 't' then
+                        l[#l+1] = '\t'
+                    elseif ec == 'r' then
+                        l[#l+1] = '\r'
+                    elseif ec == 'n' then
+                        l[#l+1] = '\n'
+                    elseif ec == '\\' then
+                        l[#l+1] = '\\'
+                    elseif ec == '"' then
+                        l[#l+1] = '"'
+                    else
+                        return nil, ms, { err = 'invalid escape sequence' }
+                    end
+                    ms = ms + 1
+                end
+            else
+                return nil, ms, { err = 'invalid string literal' }
+            end
+        end
+    end
+
     return nil, ms, { err = 'unrecognized brass s-expression' }
 end
 

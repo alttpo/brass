@@ -34,10 +34,8 @@ func (d *Decoder) decodeList() (e *SExpr, err error) {
 	}
 
 	e = &SExpr{
-		kind:    KindList,
-		integer: 0,
-		octets:  nil,
-		list:    make([]*SExpr, 0, 10),
+		kind: KindList,
+		list: make([]*SExpr, 0, 10),
 	}
 	for {
 		c, err = d.s.ReadByte()
@@ -279,7 +277,7 @@ func isTokenRemainder(c byte) bool {
 	if '0' <= c && c <= '9' {
 		return true
 	}
-	if c == '_' || c == '.' || c == '/' || c == '?' || c == '!' {
+	if c == '-' || c == '_' || c == '.' || c == '/' || c == '?' || c == '!' {
 		return true
 	}
 	if c >= 128 {

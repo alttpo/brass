@@ -64,10 +64,10 @@ integer atom type:
 token-octets atom type:
 
 	alpha-numeric identifier of arbitrary length without white-space
+	cannot start with a decimal digit or '-' to avoid ambiguity with integers
 	may begin with one optional '@' to escape reserved keywords like "nil", "true", "false"
-	cannot start with a decimal digit
 	may contain alpha characters 'a' .. 'z', 'A' .. 'Z'
-	may contain special punctuation chars "_" | "." | "/" | "?" | "!"
+	may contain special punctuation chars '-' | '_' | '.' | '/' | '?' | '!'
 	may contain non-ASCII characters 128 <= char <= 255
 	may contain decimal digits '0' .. '9'
 
@@ -76,6 +76,7 @@ token-octets atom type:
 	  `abc!`
 	  `d.e.f/gh`
 	  `snake_case?`
+	  `kebab-case!`
 	  `@true`
 	  `@nil`
 
@@ -83,12 +84,12 @@ hex-octets atom type:
 
 	leading '#' followed by <hex-digit>+ to specify the decoded data length
 	followed by '$' and then <hex-digit>* to separate length from data
+	length records number of octets encoded, not the number of hex-digits
 	if size is zero then must end in only '$' with no hex-digits after
-	encodes an array of octets with each octet described in hexadecimal
 	only hex-digits may appear after '$'
-	no white-space or other characters allowed to simplify encoding and decoding logic
-	octets are encoded as 2 hex digits in sequence, most significant digit first followed by least significant
 	only exact number of 2*length hex digits are expected after '$'
+	octets are encoded as 2 hex digits in sequence, most significant digit first followed by least significant
+	no white-space or other characters allowed to simplify encoding and decoding logic
 
 	examples:
 	  `#3$616263`
@@ -144,12 +145,13 @@ BNF:
 	<whitespace-char> :: " " | "\t" ;
 
 	<token>           :: ( "@" )? <token-start> <token-remainder>* ;
-	<token-start>     :: <alpha> | <simple-punc> | <non-ascii> ;
-	<token-remainder> :: <token-start> | <decimal-digit> ;
+	<token-start>     :: <alpha> | <non-ascii> | <punc-start> ;
+	<token-remainder> :: <alpha> | <non-ascii> | <punc-remainder> | <decimal-digit> ;
 	<alpha>           :: <upper-case> | <lower-case> ;
 	<lower-case>      :: "a" | ... | "z" ;
 	<upper-case>      :: "A" | ... | "Z" ;
-	<simple-punc>     :: "_" | "." | "/" | "?" | "!" ;
+	<punc-start>      :: "_" | "." | "/" | "?" | "!" ;
+	<punc-remainder>  :: "-" | <punc-start> ;
 	<non-ascii>       :: [128 <= char <= 255] ;
 */
 package brass

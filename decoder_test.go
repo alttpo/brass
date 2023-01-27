@@ -182,6 +182,38 @@ func TestDecoder_Decode(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "(a1)",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(a1)")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("a1"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "(b-c-d)",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(b-c-d)")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{
+					{
+						kind:   KindOctetsToken,
+						octets: []byte("b-c-d"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "(. _ / ? !)",
 			fields: fields{
 				s: bytes.NewBuffer([]byte("(. _ / ? !)")),

@@ -1,3 +1,7 @@
+-- lua 5.2 to 5.1 compat:
+if table.unpack ~= nil then
+    unpack = table.unpack
+end
 
 local decode_list
 
@@ -11,7 +15,7 @@ local function decode_atom(s, ms)
     end
 
     -- check for token:
-    me = s:match('^[@%u%l_%./%?!][%u%l%d_%./%?!]*()', ms)
+    me = s:match('^@?[%u%l_%./%?!][%u%l%d%-_%./%?!]*()', ms)
     if me ~= nil then
         local v = s:sub(ms, me-1)
         if v:sub(1,1) == '@' then
@@ -70,11 +74,16 @@ local function decode_atom(s, ms)
     end
 
     -- check for quoted-octets:
-    if s:sub(ms, ms) == '"' then
+    me = s:match('^"[^"\\\r\n]*"()', ms)
+    if me ~= nil then
+        -- trivial quoted-octets with no escaped chars:
+        return s:sub(ms+1,me-2), me, nil
+    elseif s:sub(ms, ms) == '"' then
+        -- more complex quoted-octets with escaped chars:
         ms = ms + 1
         local l = {}
         while ms <= #s do
-            me = s:match('^[^"\\]+()', ms)
+            me = s:match('^[^"\\\r\n]+()', ms)
             if me ~= nil then
                 l[#l+1] = s:sub(ms,me-1)
             else
@@ -109,7 +118,7 @@ local function decode_atom(s, ms)
                     ms = ms + 1
                 end
             else
-                return nil, ms, { err = 'invalid string literal' }
+                return nil, me, { err = 'invalid string literal' }
             end
         end
     end

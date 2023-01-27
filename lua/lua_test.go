@@ -3,7 +3,7 @@ package lua
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/yuin/gopher-lua"
+	lua "github.com/yuin/gopher-lua"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -23,6 +23,18 @@ func TestLuaDecoder(t *testing.T) {
 			nstr:    "(a)",
 			wantErr: "",
 			wantN:   list(octets([]byte("a"))),
+		},
+		{
+			name:    "(a1)",
+			nstr:    "(a1)",
+			wantErr: "",
+			wantN:   list(octets([]byte("a1"))),
+		},
+		{
+			name:    "(b-c-d)",
+			nstr:    "(b-c-d)",
+			wantErr: "",
+			wantN:   list(octets([]byte("b-c-d"))),
 		},
 		{
 			name:    "(a/b c.1 d2 ? / . _ !)",
@@ -101,6 +113,18 @@ func TestLuaDecoder(t *testing.T) {
 			wantN:   list(octets([]byte{0x61})),
 		},
 		{
+			name:    `("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")`,
+			nstr:    `("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")`,
+			wantErr: "",
+			wantN:   list(octets([]byte("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-="))),
+		},
+		{
+			name:    "(\"abc\ndef\")",
+			nstr:    "(\"abc\ndef\")",
+			wantErr: "invalid string literal",
+			wantN:   list(),
+		},
+		{
 			name:    `("\x61")`,
 			nstr:    `("\x61")`,
 			wantErr: "",
@@ -111,6 +135,25 @@ func TestLuaDecoder(t *testing.T) {
 			nstr:    `("cb\x61\r\n\tq")`,
 			wantErr: "",
 			wantN:   list(octets([]byte("cb\x61\r\n\tq"))),
+		},
+		{
+			name:    "command",
+			nstr:    "(if (eq hash \"0011223344\") (read wram $d80 16))",
+			wantErr: "",
+			wantN: list(
+				octets([]byte("if")),
+				list(
+					octets([]byte("eq")),
+					octets([]byte("hash")),
+					octets([]byte("0011223344")),
+				),
+				list(
+					octets([]byte("read")),
+					octets([]byte("wram")),
+					lua.LNumber(0xd80),
+					lua.LNumber(16),
+				),
+			),
 		},
 		func() test {
 			// fill a buffer with random bytes:
@@ -223,8 +266,12 @@ func fmtLua(v lua.LValue) string {
 			sb.WriteString(fmtLua(val))
 			sb.WriteRune(',')
 		})
-		s := sb.String()
-		return s[0:len(s)-1] + "}"
+		if sb.Len() > 1 {
+			s := sb.String()
+			return s[0:len(s)-1] + "}"
+		} else {
+			return "{}"
+		}
 	case lua.LTString:
 		st := string(v.(lua.LString))
 		return fmt.Sprintf("%q", st)

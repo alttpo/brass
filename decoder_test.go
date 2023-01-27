@@ -392,6 +392,17 @@ func TestDecoder_Decode(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "(\"abc\ndef\")",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("(\"abc\ndef\")")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{},
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -442,6 +442,11 @@ func (d *Decoder) decodeQuotedOctets() (e *SExpr, err error) {
 			return
 		}
 
+		if c == '\r' || c == '\n' {
+			err = ErrUnexpectedCharacter
+			return
+		}
+
 		if c == '"' {
 			break
 		}

@@ -318,3 +318,187 @@ func fmtLua(v lua.LValue) string {
 		return v.String()
 	}
 }
+
+func TestEncoder(t *testing.T) {
+	type test struct {
+		name    string
+		e       lua.LValue
+		wantErr string
+		wantN   string
+	}
+	var cases = []test{
+		{
+			name:    "(a)",
+			wantN:   "(a)",
+			wantErr: "",
+			e:       list(token("a")),
+		},
+		{
+			name:    "(a1)",
+			wantN:   "(a1)",
+			wantErr: "",
+			e:       list(token("a1")),
+		},
+		{
+			name:    "(b-c-d)",
+			wantN:   "(b-c-d)",
+			wantErr: "",
+			e:       list(token("b-c-d")),
+		},
+		{
+			name:    "(a/b c.1 d2 ? / . _ !)",
+			wantN:   "(a/b c.1 d2 ? / . _ !)",
+			wantErr: "",
+			e: list(
+				token("a/b"),
+				token("c.1"),
+				token("d2"),
+				token("?"),
+				token("/"),
+				token("."),
+				token("_"),
+				token("!"),
+			),
+		},
+		{
+			name:    "(nil true false)",
+			wantN:   "(nil true false)",
+			wantErr: "",
+			e:       list(lnil(), lua.LTrue, lua.LFalse),
+		},
+		{
+			name:    "(@nil @true @false)",
+			wantN:   "(@nil @true @false)",
+			wantErr: "",
+			e: list(
+				token("nil"),
+				token("true"),
+				token("false"),
+			),
+		},
+		{
+			name:    "(a b c)",
+			wantN:   "(a b c)",
+			wantErr: "",
+			e: list(
+				token("a"),
+				token("b"),
+				token("c"),
+			),
+		},
+		{
+			name:    "(1 $2 -$3 -4)",
+			wantN:   "(1 $2 -$3 -4)",
+			wantErr: "",
+			e: list(
+				intb10(1),
+				intb16(2),
+				intb16(-3),
+				intb10(-4),
+			),
+		},
+		{
+			name:    "(#0$ a)",
+			wantN:   "(#0$ a)",
+			wantErr: "",
+			e:       list(octetsHex([]byte{}), token("a")),
+		},
+		{
+			name:    "(#1$61)",
+			wantN:   "(#1$61)",
+			wantErr: "",
+			e:       list(octetsHex([]byte("a"))),
+		},
+		{
+			name:    `("")`,
+			wantN:   `("")`,
+			wantErr: "",
+			e:       list(octetsQuoted("")),
+		},
+		{
+			name:    `("a")`,
+			wantN:   `("a")`,
+			wantErr: "",
+			e:       list(octetsQuoted("a")),
+		},
+		{
+			name:    `("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")`,
+			wantN:   `("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")`,
+			wantErr: "",
+			e:       list(octetsQuoted("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")),
+		},
+		{
+			name:    "(\"abc\\ndef\")",
+			wantN:   "(\"abc\\ndef\")",
+			wantErr: "",
+			e:       list(octetsQuoted("abc\ndef")),
+		},
+		{
+			name:    `("\x1f")`,
+			wantN:   `("\x1f")`,
+			wantErr: "",
+			e:       list(octetsQuoted("\x1f")),
+		},
+		{
+			name:    `("cba\r\n\tq")`,
+			wantN:   `("cba\r\n\tq")`,
+			wantErr: "",
+			e:       list(octetsQuoted("cba\r\n\tq")),
+		},
+		{
+			name:    "command",
+			wantN:   "(if (eq hash \"0011223344\") (read wram $d80 16))",
+			wantErr: "",
+			e: list(
+				token("if"),
+				list(
+					token("eq"),
+					token("hash"),
+					octetsQuoted("0011223344"),
+				),
+				list(
+					token("read"),
+					token("wram"),
+					intb16(0xd80),
+					intb10(16),
+				),
+			),
+		},
+	}
+
+	l := lua.NewState(lua.Options{
+		RegistrySize:    65536 * 4,
+		RegistryMaxSize: 65536 * 4,
+	})
+	defer l.Close()
+
+	// load the tests.lua file:
+	var err error
+	err = l.DoFile("brass.lua")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			err = l.CallByParam(
+				lua.P{
+					Fn:      l.GetGlobal("brass_encode"),
+					NRet:    1,
+					Protect: true,
+				},
+				tt.e,
+			)
+			if err != nil {
+				t.Fatalf("glua error: %v", err)
+			}
+
+			n := l.Get(-1)
+			l.Pop(1)
+
+			if !reflect.DeepEqual(tt.wantN, lua.LVAsString(n)) {
+				t.Fatalf("want %s\ngot  %s", tt.wantN, lua.LVAsString(n))
+			}
+		})
+	}
+}

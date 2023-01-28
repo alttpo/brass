@@ -173,3 +173,79 @@ function brass_decode(s)
     local expr, me, err = decode_list(s, 1)
     return expr, me, err
 end
+
+function brass_encode(e)
+    if e == nil then
+        return 'nil'
+    elseif e == true then
+        return 'true'
+    elseif e == false then
+        return 'false'
+    elseif type(e) == 'string' then
+        -- token
+        if e == "nil" then
+            return "@nil"
+        elseif e == "true" then
+            return "@true"
+        elseif e == "false" then
+            return "@false"
+        else
+            return e
+        end
+    elseif type(e) == 'table' then
+        local k = e.kind
+        if k == nil then
+            -- list kind
+            local l = {}
+            for i=1,#e do
+                l[#l+1] = brass_encode(e[i])
+                l[#l+1] = ' '
+            end
+            if #l > 0 then
+                l[#l] = nil
+            end
+            return '(' .. table.concat(l) .. ')'
+        elseif k == 'nil' then
+            return "nil"
+        elseif k == 'int-b10' then
+            return string.format('%d', e.int)
+        elseif k == 'uint-b10' then
+            return string.format('%d', e.int)
+        elseif k == 'int-b16' then
+            if e.int < 0 then
+                return string.format('-$%x', -e.int)
+            else
+                return string.format('$%x', e.int)
+            end
+        elseif k == 'uint-b16' then
+            return string.format('$%x', e.int)
+        elseif k == 'hex' then
+            local l = {}
+            for i=1,#e.octets do
+                l[#l+1] = string.format('%02x', e.octets[i])
+            end
+            return '#' .. string.format('%x', #e.octets) .. '$' .. table.concat(l)
+        elseif k == 'quoted' then
+            local s = e.str
+            -- escape characters:
+            return '"' .. s:gsub('[^%w ]', function (m)
+                local b = string.byte(m)
+                if b == 9 then
+                    return '\\t'
+                elseif b == 10 then
+                    return '\\n'
+                elseif b == 13 then
+                    return '\\r'
+                elseif b == 34 then
+                    return '\\"'
+                elseif b == 92 then
+                    return '\\\\'
+                elseif b < 32 or b >= 128 then
+                    return string.format('\\x%02x', b)
+                else
+                    return m
+                end
+            end) .. '"'
+        end
+    end
+end

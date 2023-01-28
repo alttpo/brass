@@ -34,20 +34,29 @@ local function decode_atom(s, ms)
     end
 
     -- check for decimal integer:
-    me = s:match('^%-?%d+()', ms)
+    me = s:match('^[%-%+]?%d+()', ms)
     if me ~= nil then
         local v = s:sub(ms, me-1)
-        return tonumber(v, 10), me, nil
+        if g == '+' then
+            return { kind = 'uint-b10'; uint = tonumber(v:sub(2), 10) }, me, nil
+        elseif g == '-' then
+            return { kind = 'int-b10'; int = -tonumber(v:sub(2), 10) }, me, nil
+        else
+            return { kind = 'int-b10'; int = tonumber(v:sub(1), 10) }, me, nil
+        end
     end
 
     -- check for hexadecimal integer:
-    me = s:match('^%-?%$[0-9a-f]+()', ms)
+    me = s:match('^[%-%+]?%$[0-9a-f]+()', ms)
     if me ~= nil then
         local v = s:sub(ms, me-1)
-        if v:sub(1,1) == '-' then
-            return -tonumber(v:sub(3), 16), me, nil
+        local g = v:sub(1,1)
+        if g == '+' then
+            return { kind = 'uint-b16'; uint = tonumber(v:sub(3), 16) }, me, nil
+        elseif g == '-' then
+            return { kind = 'int-b16'; int = -tonumber(v:sub(3), 16) }, me, nil
         else
-            return tonumber(v:sub(2), 16), me, nil
+            return { kind = 'int-b16'; int = tonumber(v:sub(2), 16) }, me, nil
         end
     end
 
@@ -63,21 +72,21 @@ local function decode_atom(s, ms)
             return nil, ms, { err = 'hex-octet sequence length incorrect' }
         end
 
-        -- build string of bytes:
+        -- build list of octet values:
         local l = {}
         for i = 0,len-1 do
             l[#l+1] = tonumber(s:sub(me,me+1), 16)
             me = me + 2
         end
 
-        return string.char(unpack(l)), me, nil
+        return { kind = 'hex'; octets = l }, me, nil
     end
 
     -- check for quoted-octets:
     me = s:match('^"[^"\\\r\n]*"()', ms)
     if me ~= nil then
         -- trivial quoted-octets with no escaped chars:
-        return s:sub(ms+1,me-2), me, nil
+        return { kind = 'quoted'; str = s:sub(ms+1,me-2) }, me, nil
     elseif s:sub(ms, ms) == '"' then
         -- more complex quoted-octets with escaped chars:
         ms = ms + 1
@@ -92,7 +101,7 @@ local function decode_atom(s, ms)
 
             local ec = s:sub(me,me)
             if ec == '"' then
-                return table.concat(l), me+1, nil
+                return { kind = 'quoted'; str = table.concat(l) }, me+1, nil
             elseif ec == '\\' then
                 -- handle escapes:
                 ms = me + 1

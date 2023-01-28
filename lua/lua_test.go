@@ -22,33 +22,33 @@ func TestLuaDecoder(t *testing.T) {
 			name:    "(a)",
 			nstr:    "(a)",
 			wantErr: "",
-			wantN:   list(octets([]byte("a"))),
+			wantN:   list(token("a")),
 		},
 		{
 			name:    "(a1)",
 			nstr:    "(a1)",
 			wantErr: "",
-			wantN:   list(octets([]byte("a1"))),
+			wantN:   list(token("a1")),
 		},
 		{
 			name:    "(b-c-d)",
 			nstr:    "(b-c-d)",
 			wantErr: "",
-			wantN:   list(octets([]byte("b-c-d"))),
+			wantN:   list(token("b-c-d")),
 		},
 		{
 			name:    "(a/b c.1 d2 ? / . _ !)",
 			nstr:    "(a/b c.1 d2 ? / . _ !)",
 			wantErr: "",
 			wantN: list(
-				octets([]byte("a/b")),
-				octets([]byte("c.1")),
-				octets([]byte("d2")),
-				octets([]byte("?")),
-				octets([]byte("/")),
-				octets([]byte(".")),
-				octets([]byte("_")),
-				octets([]byte("!")),
+				token("a/b"),
+				token("c.1"),
+				token("d2"),
+				token("?"),
+				token("/"),
+				token("."),
+				token("_"),
+				token("!"),
 			),
 		},
 		{
@@ -62,9 +62,9 @@ func TestLuaDecoder(t *testing.T) {
 			nstr:    "(@nil @true @false)",
 			wantErr: "",
 			wantN: list(
-				octets([]byte("nil")),
-				octets([]byte("true")),
-				octets([]byte("false")),
+				token("nil"),
+				token("true"),
+				token("false"),
 			),
 		},
 		{
@@ -72,9 +72,9 @@ func TestLuaDecoder(t *testing.T) {
 			nstr:    "(a b c)",
 			wantErr: "",
 			wantN: list(
-				octets([]byte("a")),
-				octets([]byte("b")),
-				octets([]byte("c")),
+				token("a"),
+				token("b"),
+				token("c"),
 			),
 		},
 		{
@@ -82,41 +82,41 @@ func TestLuaDecoder(t *testing.T) {
 			nstr:    "(1 $2 -$3 -4)",
 			wantErr: "",
 			wantN: list(
-				lua.LNumber(1),
-				lua.LNumber(2),
-				lua.LNumber(-3),
-				lua.LNumber(-4),
+				intb10(1),
+				intb16(2),
+				intb16(-3),
+				intb10(-4),
 			),
 		},
 		{
 			name:    "(#0$a)",
 			nstr:    "(#0$a)",
 			wantErr: "",
-			wantN:   list(octets([]byte{}), octets([]byte{0x61})),
+			wantN:   list(octetsHex([]byte{}), token("a")),
 		},
 		{
 			name:    "(#1$61)",
 			nstr:    "(#1$61)",
 			wantErr: "",
-			wantN:   list(octets([]byte{0x61})),
+			wantN:   list(octetsHex([]byte("a"))),
 		},
 		{
 			name:    `("")`,
 			nstr:    `("")`,
 			wantErr: "",
-			wantN:   list(octets([]byte{})),
+			wantN:   list(octetsQuoted("")),
 		},
 		{
 			name:    `("a")`,
 			nstr:    `("a")`,
 			wantErr: "",
-			wantN:   list(octets([]byte{0x61})),
+			wantN:   list(octetsQuoted("a")),
 		},
 		{
 			name:    `("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")`,
 			nstr:    `("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")`,
 			wantErr: "",
-			wantN:   list(octets([]byte("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-="))),
+			wantN:   list(octetsQuoted("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")),
 		},
 		{
 			name:    "(\"abc\ndef\")",
@@ -128,30 +128,30 @@ func TestLuaDecoder(t *testing.T) {
 			name:    `("\x61")`,
 			nstr:    `("\x61")`,
 			wantErr: "",
-			wantN:   list(octets([]byte{0x61})),
+			wantN:   list(octetsQuoted("a")),
 		},
 		{
 			name:    `("cb\x61\r\n\tq")`,
 			nstr:    `("cb\x61\r\n\tq")`,
 			wantErr: "",
-			wantN:   list(octets([]byte("cb\x61\r\n\tq"))),
+			wantN:   list(octetsQuoted("cb\x61\r\n\tq")),
 		},
 		{
 			name:    "command",
 			nstr:    "(if (eq hash \"0011223344\") (read wram $d80 16))",
 			wantErr: "",
 			wantN: list(
-				octets([]byte("if")),
+				token("if"),
 				list(
-					octets([]byte("eq")),
-					octets([]byte("hash")),
-					octets([]byte("0011223344")),
+					token("eq"),
+					token("hash"),
+					octetsQuoted("0011223344"),
 				),
 				list(
-					octets([]byte("read")),
-					octets([]byte("wram")),
-					lua.LNumber(0xd80),
-					lua.LNumber(16),
+					token("read"),
+					token("wram"),
+					intb16(0xd80),
+					intb10(16),
 				),
 			),
 		},
@@ -165,7 +165,7 @@ func TestLuaDecoder(t *testing.T) {
 				name:    "large hex-octets",
 				nstr:    fmt.Sprintf("(#%x$%s)", len(large), hex.EncodeToString(large)),
 				wantErr: "",
-				wantN:   list(octets(large)),
+				wantN:   list(octetsHex(large)),
 			}
 		}(),
 		func() test {
@@ -178,7 +178,7 @@ func TestLuaDecoder(t *testing.T) {
 				name:    "huge hex-octets",
 				nstr:    fmt.Sprintf("(#%x$%s)", len(huge), hex.EncodeToString(huge)),
 				wantErr: "",
-				wantN:   list(octets(huge)),
+				wantN:   list(octetsHex(huge)),
 			}
 		}(),
 	}
@@ -238,8 +238,41 @@ func table() *lua.LTable {
 		Metatable: lua.LNil,
 	}
 }
-func octets(s []byte) lua.LString {
+
+func token(s string) lua.LString {
 	return lua.LString(s)
+}
+
+func intb10(i int64) *lua.LTable {
+	t := table()
+	t.RawSetString("kind", lua.LString("int-b10"))
+	t.RawSetString("int", lua.LNumber(i))
+	return t
+}
+
+func intb16(i int64) *lua.LTable {
+	t := table()
+	t.RawSetString("kind", lua.LString("int-b16"))
+	t.RawSetString("int", lua.LNumber(i))
+	return t
+}
+
+func octetsQuoted(s string) *lua.LTable {
+	t := table()
+	t.RawSetString("kind", lua.LString("quoted"))
+	t.RawSetString("str", lua.LString(s))
+	return t
+}
+
+func octetsHex(s []byte) *lua.LTable {
+	t := table()
+	t.RawSetString("kind", lua.LString("hex"))
+	l := table()
+	for _, b := range s {
+		l.Append(lua.LNumber(b))
+	}
+	t.RawSetString("octets", l)
+	return t
 }
 
 func list(children ...lua.LValue) *lua.LTable {

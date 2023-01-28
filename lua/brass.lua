@@ -22,7 +22,7 @@ local function decode_atom(s, ms)
             -- escaped token:
             return v:sub(2), me, nil
         elseif v == 'nil' then
-            return nil, me, nil
+            return { kind = 'nil' }, me, nil
         elseif v == 'true' then
             return true, me, nil
         elseif v == 'false' then

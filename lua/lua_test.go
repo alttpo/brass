@@ -55,7 +55,7 @@ func TestLuaDecoder(t *testing.T) {
 			name:    "(nil true false)",
 			nstr:    "(nil true false)",
 			wantErr: "",
-			wantN:   list(lua.LNil, lua.LTrue, lua.LFalse),
+			wantN:   list(lnil(), lua.LTrue, lua.LFalse),
 		},
 		{
 			name:    "(@nil @true @false)",
@@ -272,6 +272,12 @@ func octetsHex(s []byte) *lua.LTable {
 		l.Append(lua.LNumber(b))
 	}
 	t.RawSetString("octets", l)
+	return t
+}
+
+func lnil() *lua.LTable {
+	t := table()
+	t.RawSetString("kind", lua.LString("nil"))
 	return t
 }
 

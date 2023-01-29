@@ -189,12 +189,26 @@ func TestLuaDecoder(t *testing.T) {
 	})
 	defer l.Close()
 
-	// load the tests.lua file:
+	// load the lua file:
 	var err error
-	err = l.DoFile("brass.lua")
+	var rfn *lua.LFunction
+	rfn, err = l.LoadFile("brass.lua")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// call the main function to return the brass module table:
+	err = l.CallByParam(lua.P{
+		Fn:      rfn,
+		NRet:    1,
+		Protect: true,
+	})
+
+	// get the decode function out of the module:
+	var br lua.LValue
+	br = l.Get(-1)
+	var decode *lua.LFunction
+	decode = l.GetField(br, "decode").(*lua.LFunction)
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -202,7 +216,7 @@ func TestLuaDecoder(t *testing.T) {
 
 			err = l.CallByParam(
 				lua.P{
-					Fn:      l.GetGlobal("brass_decode"),
+					Fn:      decode,
 					NRet:    3,
 					Protect: true,
 				},
@@ -472,18 +486,32 @@ func TestEncoder(t *testing.T) {
 	})
 	defer l.Close()
 
-	// load the tests.lua file:
+	// load the lua file:
 	var err error
-	err = l.DoFile("brass.lua")
+	var rfn *lua.LFunction
+	rfn, err = l.LoadFile("brass.lua")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// call the main function to return the brass module table:
+	err = l.CallByParam(lua.P{
+		Fn:      rfn,
+		NRet:    1,
+		Protect: true,
+	})
+
+	// get the encode function out of the module:
+	var br lua.LValue
+	br = l.Get(-1)
+	var encode *lua.LFunction
+	encode = l.GetField(br, "encode").(*lua.LFunction)
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			err = l.CallByParam(
 				lua.P{
-					Fn:      l.GetGlobal("brass_encode"),
+					Fn:      encode,
 					NRet:    1,
 					Protect: true,
 				},

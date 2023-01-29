@@ -1,3 +1,25 @@
+-- Brass: a custom s-expression encoder and decoder library for Lua 5.1
+-- Version 20230128
+--
+-- Copyright jsd1982 2023
+--
+-- MIT License
+--
+-- Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+-- documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+-- rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+-- permit persons to whom the Software is furnished to do so, subject to the following conditions:
+--
+-- The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+-- Software.
+--
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+-- WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
+-- OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+local brass = {}
+
 -- lua 5.2 to 5.1 compat:
 if table.unpack ~= nil then
     unpack = table.unpack
@@ -169,12 +191,12 @@ decode_list = function (s, ms)
     return l, me, { err = 'unexpected end of list' }
 end
 
-function brass_decode(s)
+function brass.decode(s)
     local expr, me, err = decode_list(s, 1)
     return expr, me, err
 end
 
-function brass_encode(e)
+function brass.encode(e)
     if e == nil then
         return 'nil'
     elseif e == true then
@@ -198,7 +220,7 @@ function brass_encode(e)
             -- list kind
             local l = {}
             for i=1,#e do
-                l[#l+1] = brass_encode(e[i])
+                l[#l+1] = brass.encode(e[i])
                 l[#l+1] = ' '
             end
             if #l > 0 then
@@ -249,3 +271,5 @@ function brass_encode(e)
         end
     end
 end
+
+return brass

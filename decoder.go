@@ -68,6 +68,53 @@ func (d *Decoder) decodeList() (e *SExpr, err error) {
 	}
 }
 
+func (d *Decoder) decodeMap() (e *SExpr, err error) {
+	var c byte
+
+	c, err = d.s.ReadByte()
+	if err != nil {
+		return
+	}
+	if c != '{' {
+		err = ErrUnexpectedCharacter
+		return
+	}
+
+	e = &SExpr{
+		kind: KindList,
+		list: make([]*SExpr, 0, 10),
+	}
+	for {
+		c, err = d.s.ReadByte()
+		if err != nil {
+			return
+		}
+		if c == ' ' {
+			continue
+		}
+
+		if c == '}' {
+			return
+		}
+
+		err = d.s.UnreadByte()
+		if err != nil {
+			return
+		}
+
+		var child *SExpr
+		child, err = d.decodeNode()
+		if err != nil {
+			return
+		}
+		if child == nil {
+			continue
+		}
+
+		e.list = append(e.list, child)
+	}
+}
+
 func (d *Decoder) decodeNode() (e *SExpr, err error) {
 	var c byte
 	for {
@@ -209,7 +256,7 @@ func (d *Decoder) decodeIntB16(negate bool) (e *SExpr, err error) {
 		e = &SExpr{
 			kind:    KindInteger,
 			integer: i64,
-			octets:  nil,
+			octets:  "",
 			list:    nil,
 		}
 		return
@@ -265,7 +312,7 @@ func (d *Decoder) decodeHexOctets() (e *SExpr, err error) {
 
 	e = &SExpr{
 		kind:   KindOctets,
-		octets: data.Bytes(),
+		octets: data.String(),
 	}
 	return
 }
@@ -357,7 +404,7 @@ func (d *Decoder) decodeQuotedOctets() (e *SExpr, err error) {
 
 	e = &SExpr{
 		kind:   KindString,
-		octets: b.Bytes(),
+		octets: b.String(),
 	}
 	return
 }

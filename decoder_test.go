@@ -200,7 +200,7 @@ func TestDecoder_Decode(t *testing.T) {
 				list: []*SExpr{
 					{
 						kind:   KindOctets,
-						octets: []byte("\x00"),
+						octets: "\x00",
 					},
 				},
 			},
@@ -216,7 +216,7 @@ func TestDecoder_Decode(t *testing.T) {
 				list: []*SExpr{
 					{
 						kind:   KindOctets,
-						octets: []byte("\xff\xfe\xfd\xfc\xfb"),
+						octets: "\xff\xfe\xfd\xfc\xfb",
 					},
 				},
 			},
@@ -233,7 +233,7 @@ func TestDecoder_Decode(t *testing.T) {
 				list: []*SExpr{
 					{
 						kind:   KindString,
-						octets: nil,
+						octets: "",
 					},
 				},
 			},
@@ -249,7 +249,7 @@ func TestDecoder_Decode(t *testing.T) {
 				list: []*SExpr{
 					{
 						kind:   KindString,
-						octets: []byte("abc\r\n\t\xff123\\[]\"x"),
+						octets: "abc\r\n\t\xff123\\[]\"x",
 					},
 				},
 			},
@@ -265,6 +265,17 @@ func TestDecoder_Decode(t *testing.T) {
 				list: []*SExpr{},
 			},
 			wantErr: true,
+		},
+		{
+			name: "({(\"abc\" 1) (\"def\" 2)})",
+			fields: fields{
+				s: bytes.NewBuffer([]byte("({(\"abc\" 1) (\"def\" 2)})")),
+			},
+			wantE: &SExpr{
+				kind: KindList,
+				list: []*SExpr{},
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {

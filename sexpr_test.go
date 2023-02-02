@@ -6,7 +6,7 @@ func TestSExpr_String(t *testing.T) {
 	type fields struct {
 		kind    Kind
 		integer int64
-		octets  []byte
+		octets  string
 		list    []*SExpr
 	}
 	tests := []struct {
@@ -44,7 +44,7 @@ func TestSExpr_String(t *testing.T) {
 				list: []*SExpr{
 					{
 						kind:   KindString,
-						octets: []byte("a"),
+						octets: "a",
 					},
 					{
 						kind:    KindInteger,
@@ -65,11 +65,11 @@ func TestSExpr_String(t *testing.T) {
 				list: []*SExpr{
 					{
 						kind:   KindString,
-						octets: []byte("\r\n"),
+						octets: "\r\n",
 					},
 					{
 						kind:   KindOctets,
-						octets: []byte("\x00\x01\x02"),
+						octets: "\x00\x01\x02",
 					},
 				},
 			},

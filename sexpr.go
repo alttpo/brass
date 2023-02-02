@@ -11,13 +11,9 @@ const (
 	KindNil Kind = iota
 	KindList
 	KindBool
-	KindOctetsToken
-	KindOctetsQuoted
-	KindOctetsHex
-	KindInt64B10
-	KindInt64B16
-	KindUInt64B10
-	KindUInt64B16
+	KindString
+	KindOctets
+	KindInteger
 	_ // reserved for KindNatural - future extension
 )
 
@@ -48,28 +44,28 @@ func (e *SExpr) AsBool() bool {
 	return e.integer != 0
 }
 
+func (e *SExpr) AsString() string {
+	kind := e.kind
+	if kind != KindString {
+		panic("must be KindString")
+	}
+	return string(e.octets)
+}
+
 func (e *SExpr) AsOctets() []byte {
 	kind := e.kind
-	if kind != KindOctetsToken && kind != KindOctetsHex && kind != KindOctetsQuoted {
-		panic("must be KindOctetsToken | KindOctetsHex | KindOctetsQuoted")
+	if kind != KindOctets {
+		panic("must be KindOctets")
 	}
 	return e.octets
 }
 
 func (e *SExpr) AsInt64() int64 {
 	kind := e.kind
-	if kind != KindInt64B10 && kind != KindInt64B16 {
-		panic("must be KindInt64B10 | KindInt64B16")
+	if kind != KindInteger {
+		panic("must be KindInteger")
 	}
 	return e.integer
-}
-
-func (e *SExpr) AsUInt64() uint64 {
-	kind := e.kind
-	if kind != KindUInt64B10 && kind != KindUInt64B16 {
-		panic("must be KindUInt64B10 | KindUInt64B16")
-	}
-	return uint64(e.integer)
 }
 
 func (e *SExpr) reset() {
@@ -102,46 +98,22 @@ func (e *SExpr) SetBool(value bool) {
 	}
 }
 
-func (e *SExpr) SetOctetsToken(octets []byte) {
+func (e *SExpr) SetString(str string) {
 	e.reset()
-	e.kind = KindOctetsToken
-	e.octets = octets
+	e.kind = KindString
+	e.octets = []byte(str)
 }
 
-func (e *SExpr) SetOctetsQuoted(octets []byte) {
+func (e *SExpr) SetOctets(octets []byte) {
 	e.reset()
-	e.kind = KindOctetsQuoted
+	e.kind = KindOctets
 	e.octets = octets
-}
-
-func (e *SExpr) SetOctetsHex(octets []byte) {
-	e.reset()
-	e.kind = KindOctetsHex
-	e.octets = octets
-}
-
-func (e *SExpr) SetInt64B10(value int64) {
-	e.reset()
-	e.kind = KindInt64B10
-	e.integer = value
 }
 
 func (e *SExpr) SetInt64B16(value int64) {
 	e.reset()
-	e.kind = KindInt64B16
+	e.kind = KindInteger
 	e.integer = value
-}
-
-func (e *SExpr) SetUInt64B10(value uint64) {
-	e.reset()
-	e.kind = KindUInt64B10
-	e.integer = int64(value)
-}
-
-func (e *SExpr) SetUInt64B16(value uint64) {
-	e.reset()
-	e.kind = KindUInt64B16
-	e.integer = int64(value)
 }
 
 func (e *SExpr) String() string {
@@ -162,23 +134,14 @@ func (e *SExpr) appendString(sb *strings.Builder) {
 			sb.WriteString("false")
 		}
 		return
-	case KindInt64B10:
-		fmt.Fprintf(sb, "%d", e.integer)
-		return
-	case KindInt64B16:
+	case KindInteger:
 		if e.integer < 0 {
 			fmt.Fprintf(sb, "-$%x", -e.integer)
 		} else {
 			fmt.Fprintf(sb, "$%x", e.integer)
 		}
 		return
-	case KindUInt64B10:
-		fmt.Fprintf(sb, "%d", uint64(e.integer))
-		return
-	case KindUInt64B16:
-		fmt.Fprintf(sb, "$%x", uint64(e.integer))
-		return
-	case KindOctetsHex:
+	case KindOctets:
 		sb.WriteByte('#')
 		fmt.Fprintf(sb, "%x", len(e.octets))
 		sb.WriteByte('$')
@@ -186,7 +149,7 @@ func (e *SExpr) appendString(sb *strings.Builder) {
 			fmt.Fprintf(sb, "%02x", b)
 		}
 		return
-	case KindOctetsQuoted:
+	case KindString:
 		sb.WriteByte('"')
 		for _, b := range e.octets {
 			if b == '\\' {
@@ -208,10 +171,6 @@ func (e *SExpr) appendString(sb *strings.Builder) {
 			}
 		}
 		sb.WriteByte('"')
-		return
-	case KindOctetsToken:
-		// TODO: verify characters?
-		sb.Write(e.octets)
 		return
 	case KindList:
 		sb.WriteByte('(')

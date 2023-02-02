@@ -38,25 +38,25 @@ func TestSExpr_String(t *testing.T) {
 			want: "(() ())",
 		},
 		{
-			name: "(a 3 -2)",
+			name: "(\"a\" $3 -$2)",
 			fields: fields{
 				kind: KindList,
 				list: []*SExpr{
 					{
-						kind:   KindOctetsToken,
+						kind:   KindString,
 						octets: []byte("a"),
 					},
 					{
-						kind:    KindInt64B10,
+						kind:    KindInteger,
 						integer: 3,
 					},
 					{
-						kind:    KindInt64B10,
+						kind:    KindInteger,
 						integer: -2,
 					},
 				},
 			},
-			want: "(a 3 -2)",
+			want: "(\"a\" $3 -$2)",
 		},
 		{
 			name: `("\r\n" #3$000102)`,
@@ -64,11 +64,11 @@ func TestSExpr_String(t *testing.T) {
 				kind: KindList,
 				list: []*SExpr{
 					{
-						kind:   KindOctetsQuoted,
+						kind:   KindString,
 						octets: []byte("\r\n"),
 					},
 					{
-						kind:   KindOctetsHex,
+						kind:   KindOctets,
 						octets: []byte("\x00\x01\x02"),
 					},
 				},

@@ -15,20 +15,20 @@ encoding restrictions:
 
 s-expression examples:
 
-	(test_exp abc d.e.f/gh snake_case nil true false #3$616263)
-	(#a$0102030405060708090a 1023 $3ff)
-	("abc\ndef\t\"123\"\x00\xff" () ^5"12345")
-	((a 1) (b 2) (c 3) (d nil) (e false))
+	("test_exp" "abc" "d.e.f/gh" nil true false #3$616263 $1000)
+	(#a$0102030405060708090a $3ff -$7f)
+	("abc\ndef\t\"123\"\x00\xff" () "12345")
+	{("a" 1) ("b" 2) ("c" 3) ("d" nil) ("e" false)}
 
 atom types:
 
 	nil
 	bool
 	integer
-	token-octets
-	hex-octets
-	quoted-octets
+	octets
+	string
 	list
+	map
 
 nil atom type:
 
@@ -40,47 +40,19 @@ bool atom type:
 
 integer atom type:
 
-	a base-10 or base-16 integer value of 64-bit length
-	may start with optional '-' to indicate signed type and negative value
-	or may start with '+' to indicate unsigned type and positive value
-	if starts with neither '-' nor '+' then type is signed and value is positive
-	integers contain only allowable digit characters depending on the base
+	a base-16 signed integer value of at most 52-bit length
+	may start with optional '-' to indicate negative value
 	no extra formatting-related ('_'), division (','), or white-space characters are allowed
 	any number of leading zeros are allowed and *do not* signify base-8
-	the default base is 10
-	base-10 integer must contain only digits '0'..'9'
-	base-16 integer must start with '$'
-	base-16 integer must contain only digits '0'..'9','a'..'f'
-	base-16 integer cannot contain upper-case 'A'..'F' so as to simplify encoding and decoding logic
+	must start with '$' (after optional '-')
+	must contain only digits '0'..'9','a'..'f'
+	cannot contain upper-case 'A'..'F' so as to simplify encoding and decoding logic
 
 	examples:
-		  `-1024`  =   int64(-1024)
-		`0001023`  =   int64( 1023)
-		   `1023`  =   int64( 1023)
-		   `$3ff`  =   int64( 1023)
-		  `+$3ff`  =  uint64( 1023)
-		  `+1023`  =  uint64( 1023)
+		 `$3ff`  =   ( 1023)
+		`-$3ff`  =   (-1023)
 
-token-octets atom type:
-
-	alpha-numeric identifier of arbitrary length without white-space
-	cannot start with a decimal digit or '-' to avoid ambiguity with integers
-	may begin with one optional '@' to escape reserved keywords like "nil", "true", "false"
-	may contain alpha characters 'a' .. 'z', 'A' .. 'Z'
-	may contain special punctuation chars '-' | '_' | '.' | '/' | '?' | '!'
-	may contain non-ASCII characters 128 <= char <= 255
-	may contain decimal digits '0' .. '9'
-
-	examples:
-	  `test_exp`
-	  `abc!`
-	  `d.e.f/gh`
-	  `snake_case?`
-	  `kebab-case!`
-	  `@true`
-	  `@nil`
-
-hex-octets atom type:
+octets atom type:
 
 	leading '#' followed by <hex-digit>+ to specify the decoded data length
 	followed by '$' and then <hex-digit>* to separate length from data
@@ -95,10 +67,10 @@ hex-octets atom type:
 	  `#3$616263`
 	  `#a$0102030405060708090a`
 
-quoted-octets atom type:
+string atom type:
 
-	leading '"' and trailing '"'
-	may contain any ASCII and non-ASCII character except '"', '\r', '\n'
+	required leading '"' and trailing '"'
+	may directly contain any 7-bit ASCII and 8-bit non-ASCII character except '"', '\r', '\n'
 	a '\' is treated as the start of an escape sequence followed by one of:
 		'\' = '\\'
 		'"' = '\"'
@@ -111,47 +83,54 @@ quoted-octets atom type:
 	  "abc\ndef\t\"123\"\x00\xff"
 	  "12345"
 
+list atom type:
+
+	list of s-expressions surrounded by '(' ')'
+	each s-expression separated by whitespace
+
+map atom type:
+
+	map of key-value pairs surrounded by '{' '}'
+	each key-value pair separated by whitespace
+	key-value pairs are represented as two-element lists surrounded by '(' ')'
+	key and value are separated by whitespace
+	keys can only be a primitive atom type (not list or map)
+	values can be any atom type
+
+	examples:
+	  {("a" $1) ("b" $2)}
+	  {(#1$0a $1) (#1$0b $2)}
+
 BNF:
 
-	<sexpr>           :: <nil> | <bool> | <integer> | <token> | <octets> | <list> ;
+	<sexpr>           :: <sexpr-primitive> | <sexpr-complex> ;
+	<sexpr-primitive> :: <nil> | <bool> | <integer> | <string> | <octets> ;
+	<sexpr-complex>   :: <list> | <map> ;
 
-	<list>            :: "(" ( <sexpr> | <whitespace> )* ")" ;
+	<list>            :: '(' ( <sexpr> | <whitespace> )* ')' ;
 
-	<nil>             :: "n" "i" "l" ;
+	<map>             :: '{' ( <map-entry> | <whitespace> )* '}' ;
+	<map-entry>       :: '(' <sexpr-primitive> <whitespace> <sexpr> ')' ;
+
+	<nil>             :: 'n' 'i' 'l' ;
 
 	<bool>            :: <bool-true> | <bool-false> ;
-	<bool-true>       :: "t" "r" "u" "e" ;
-	<bool-false>      :: "f" "a" "l" "s" "e" ;
+	<bool-true>       :: 't' 'r' 'u' 'e' ;
+	<bool-false>      :: 'f' 'a' 'l' 's' 'e' ;
 
-	<integer>         :: <decimal> | <hexadecimal> ;
+	<integer>         :: ( '-' )? <hexadecimal> ;
 
-	<decimal>         :: <decimal-digit>+ ;
-	<decimal-digit>   :: "0" | ... | "9" ;
+	<hexadecimal>     :: '$' <hex-digit>+ ;
+	<hex-digit>       :: '0' | ... | '9' | 'a' | ... | 'f' ;
 
-	<hexadecimal>     :: "$" <hex-digit>+ ;
-	<hex-digit>       :: <decimal-digit> | "a" | ... | "f" ;
+	<octets>          :: '#' <hex-digit>+ '$' <hex-digit>* ;
 
-	<octets>          :: <hex-octets> | <quoted-octets> ;
+	<string>          :: '\"' ( <quoted-char> | <quoted-escape> )* '\"' ;
+	<quoted-char>     :: [any 8-bit char except '\"', '\\', '\r', '\n'] ;
+	<quoted-escape>   :: '\\' ( <escape-single> | <escape-hex> ) ;
+	<escape-single>   :: '\\' | '\"' | 'n' | 'r' | 't' ;
+	<escape-hex>      :: 'x' <hex-digit> <hex-digit> ;
 
-	<hex-octets>      :: "#" <hex-digit>+ "$" <hex-digit>* ;
-
-	<quoted-octets>   :: "\"" ( <quoted-char> | <quoted-escape> )* "\"" ;
-	<quoted-char>     :: [any 8-bit char except "\"", "\\", "\r", "\n"] ;
-	<quoted-escape>   :: "\\" ( <escape-single> | <escape-hex> ) ;
-	<escape-single>   :: "\\" | "\"" | "n" | "r" | "t" ;
-	<escape-hex>      :: "x" <hex-digit> <hex-digit> ;
-
-	<whitespace>      :: <whitespace-char>* ;
-	<whitespace-char> :: " " | "\t" ;
-
-	<token>           :: ( "@" )? <token-start> <token-remainder>* ;
-	<token-start>     :: <alpha> | <non-ascii> | <punc-start> ;
-	<token-remainder> :: <alpha> | <non-ascii> | <punc-remainder> | <decimal-digit> ;
-	<alpha>           :: <upper-case> | <lower-case> ;
-	<lower-case>      :: "a" | ... | "z" ;
-	<upper-case>      :: "A" | ... | "Z" ;
-	<punc-start>      :: "_" | "." | "/" | "?" | "!" ;
-	<punc-remainder>  :: "-" | <punc-start> ;
-	<non-ascii>       :: [128 <= char <= 255] ;
+	<whitespace>      :: ' ' ;
 */
 package brass

@@ -155,6 +155,25 @@ func TestLuaDecoder(t *testing.T) {
 				),
 			),
 		},
+		{
+			name:    "req",
+			nstr:    "(v20230128/req (seq 1) (check (platform snes) (rom-hash 00112233)) (read (snes/mem/console/wram ($10 $20)) (snes/mem/cart/sram (0 $300))))",
+			wantErr: "",
+			wantN: list(
+				token("if"),
+				list(
+					token("eq"),
+					token("hash"),
+					octetsQuoted("0011223344"),
+				),
+				list(
+					token("read"),
+					token("wram"),
+					intb16(0xd80),
+					intb10(16),
+				),
+			),
+		},
 		func() test {
 			// fill a buffer with random bytes:
 			large := make([]byte, 256)

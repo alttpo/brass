@@ -19,160 +19,69 @@ func TestLuaDecoder(t *testing.T) {
 	}
 	var cases = []test{
 		{
-			name:    "(a)",
-			nstr:    "(a)",
-			wantErr: "",
-			wantN:   list(token("a")),
-		},
-		{
-			name:    "(a1)",
-			nstr:    "(a1)",
-			wantErr: "",
-			wantN:   list(token("a1")),
-		},
-		{
-			name:    "(b-c-d)",
-			nstr:    "(b-c-d)",
-			wantErr: "",
-			wantN:   list(token("b-c-d")),
-		},
-		{
-			name:    "(a/b c.1 d2 ? / . _ !)",
-			nstr:    "(a/b c.1 d2 ? / . _ !)",
-			wantErr: "",
-			wantN: list(
-				token("a/b"),
-				token("c.1"),
-				token("d2"),
-				token("?"),
-				token("/"),
-				token("."),
-				token("_"),
-				token("!"),
-			),
-		},
-		{
 			name:    "(nil true false)",
 			nstr:    "(nil true false)",
 			wantErr: "",
-			wantN:   list(lnil(), lua.LTrue, lua.LFalse),
+			wantN:   mkList(mkNil(), lua.LTrue, lua.LFalse),
 		},
 		{
-			name:    "(@nil @true @false)",
-			nstr:    "(@nil @true @false)",
+			name:    "($1 $2 -$3 -$4)",
+			nstr:    "($1 $2 -$3 -$4)",
 			wantErr: "",
-			wantN: list(
-				token("nil"),
-				token("true"),
-				token("false"),
+			wantN: mkList(
+				mkInteger(1),
+				mkInteger(2),
+				mkInteger(-3),
+				mkInteger(-4),
 			),
 		},
 		{
-			name:    "(a b c)",
-			nstr:    "(a b c)",
+			name:    "(#0$)",
+			nstr:    "(#0$)",
 			wantErr: "",
-			wantN: list(
-				token("a"),
-				token("b"),
-				token("c"),
-			),
-		},
-		{
-			name:    "(1 $2 -$3 -4)",
-			nstr:    "(1 $2 -$3 -4)",
-			wantErr: "",
-			wantN: list(
-				intb10(1),
-				intb16(2),
-				intb16(-3),
-				intb10(-4),
-			),
-		},
-		{
-			name:    "(#0$a)",
-			nstr:    "(#0$a)",
-			wantErr: "",
-			wantN:   list(octetsHex([]byte{}), token("a")),
+			wantN:   mkList(mkOctets([]byte{})),
 		},
 		{
 			name:    "(#1$61)",
 			nstr:    "(#1$61)",
 			wantErr: "",
-			wantN:   list(octetsHex([]byte("a"))),
+			wantN:   mkList(mkOctets([]byte("a"))),
 		},
 		{
 			name:    `("")`,
 			nstr:    `("")`,
 			wantErr: "",
-			wantN:   list(octetsQuoted("")),
+			wantN:   mkList(mkString("")),
 		},
 		{
 			name:    `("a")`,
 			nstr:    `("a")`,
 			wantErr: "",
-			wantN:   list(octetsQuoted("a")),
+			wantN:   mkList(mkString("a")),
 		},
 		{
 			name:    `("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")`,
 			nstr:    `("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")`,
 			wantErr: "",
-			wantN:   list(octetsQuoted("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")),
+			wantN:   mkList(mkString("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")),
 		},
 		{
 			name:    "(\"abc\ndef\")",
 			nstr:    "(\"abc\ndef\")",
 			wantErr: "invalid string literal",
-			wantN:   list(),
+			wantN:   mkList(),
 		},
 		{
 			name:    `("\x61")`,
 			nstr:    `("\x61")`,
 			wantErr: "",
-			wantN:   list(octetsQuoted("a")),
+			wantN:   mkList(mkString("a")),
 		},
 		{
 			name:    `("cb\x61\r\n\tq")`,
 			nstr:    `("cb\x61\r\n\tq")`,
 			wantErr: "",
-			wantN:   list(octetsQuoted("cb\x61\r\n\tq")),
-		},
-		{
-			name:    "command",
-			nstr:    "(if (eq hash \"0011223344\") (read wram $d80 16))",
-			wantErr: "",
-			wantN: list(
-				token("if"),
-				list(
-					token("eq"),
-					token("hash"),
-					octetsQuoted("0011223344"),
-				),
-				list(
-					token("read"),
-					token("wram"),
-					intb16(0xd80),
-					intb10(16),
-				),
-			),
-		},
-		{
-			name:    "req",
-			nstr:    "(v20230128/req (seq 1) (check (platform snes) (rom-hash 00112233)) (read (snes/mem/console/wram ($10 $20)) (snes/mem/cart/sram (0 $300))))",
-			wantErr: "",
-			wantN: list(
-				token("if"),
-				list(
-					token("eq"),
-					token("hash"),
-					octetsQuoted("0011223344"),
-				),
-				list(
-					token("read"),
-					token("wram"),
-					intb16(0xd80),
-					intb10(16),
-				),
-			),
+			wantN:   mkList(mkString("cb\x61\r\n\tq")),
 		},
 		func() test {
 			// fill a buffer with random bytes:
@@ -184,7 +93,7 @@ func TestLuaDecoder(t *testing.T) {
 				name:    "large hex-octets",
 				nstr:    fmt.Sprintf("(#%x$%s)", len(large), hex.EncodeToString(large)),
 				wantErr: "",
-				wantN:   list(octetsHex(large)),
+				wantN:   mkList(mkOctets(large)),
 			}
 		}(),
 		func() test {
@@ -197,7 +106,7 @@ func TestLuaDecoder(t *testing.T) {
 				name:    "huge hex-octets",
 				nstr:    fmt.Sprintf("(#%x$%s)", len(huge), hex.EncodeToString(huge)),
 				wantErr: "",
-				wantN:   list(octetsHex(huge)),
+				wantN:   mkList(mkOctets(huge)),
 			}
 		}(),
 	}
@@ -272,50 +181,32 @@ func table() *lua.LTable {
 	}
 }
 
-func token(s string) lua.LString {
+func mkInteger(i int64) lua.LValue {
+	return lua.LNumber(i)
+}
+
+func mkString(s string) lua.LValue {
 	return lua.LString(s)
 }
 
-func intb10(i int64) *lua.LTable {
+func mkOctets(s []byte) lua.LValue {
 	t := table()
-	t.RawSetString("kind", lua.LString("int-b10"))
-	t.RawSetString("int", lua.LNumber(i))
-	return t
-}
-
-func intb16(i int64) *lua.LTable {
-	t := table()
-	t.RawSetString("kind", lua.LString("int-b16"))
-	t.RawSetString("int", lua.LNumber(i))
-	return t
-}
-
-func octetsQuoted(s string) *lua.LTable {
-	t := table()
-	t.RawSetString("kind", lua.LString("quoted"))
-	t.RawSetString("str", lua.LString(s))
-	return t
-}
-
-func octetsHex(s []byte) *lua.LTable {
-	t := table()
-	t.RawSetString("kind", lua.LString("hex"))
-	l := table()
+	t.RawSetString("__brass_kind", lua.LString("octets"))
 	for _, b := range s {
-		l.Append(lua.LNumber(b))
+		t.Append(lua.LNumber(b))
 	}
-	t.RawSetString("octets", l)
 	return t
 }
 
-func lnil() *lua.LTable {
+func mkNil() lua.LValue {
 	t := table()
-	t.RawSetString("kind", lua.LString("nil"))
+	t.RawSetString("__brass_kind", lua.LString("nil"))
 	return t
 }
 
-func list(children ...lua.LValue) *lua.LTable {
+func mkList(children ...lua.LValue) lua.LValue {
 	t := table()
+	t.RawSetString("__brass_kind", lua.LString("list"))
 	for _, c := range children {
 		t.Append(c)
 	}
@@ -361,141 +252,69 @@ func TestEncoder(t *testing.T) {
 	}
 	var cases = []test{
 		{
-			name:    "(a)",
-			wantN:   "(a)",
-			wantErr: "",
-			e:       list(token("a")),
-		},
-		{
-			name:    "(a1)",
-			wantN:   "(a1)",
-			wantErr: "",
-			e:       list(token("a1")),
-		},
-		{
-			name:    "(b-c-d)",
-			wantN:   "(b-c-d)",
-			wantErr: "",
-			e:       list(token("b-c-d")),
-		},
-		{
-			name:    "(a/b c.1 d2 ? / . _ !)",
-			wantN:   "(a/b c.1 d2 ? / . _ !)",
-			wantErr: "",
-			e: list(
-				token("a/b"),
-				token("c.1"),
-				token("d2"),
-				token("?"),
-				token("/"),
-				token("."),
-				token("_"),
-				token("!"),
-			),
-		},
-		{
 			name:    "(nil true false)",
 			wantN:   "(nil true false)",
 			wantErr: "",
-			e:       list(lnil(), lua.LTrue, lua.LFalse),
+			e:       mkList(mkNil(), lua.LTrue, lua.LFalse),
 		},
 		{
-			name:    "(@nil @true @false)",
-			wantN:   "(@nil @true @false)",
+			name:    "($1 $2 -$3 -$4)",
+			wantN:   "($1 $2 -$3 -$4)",
 			wantErr: "",
-			e: list(
-				token("nil"),
-				token("true"),
-				token("false"),
+			e: mkList(
+				mkInteger(1),
+				mkInteger(2),
+				mkInteger(-3),
+				mkInteger(-4),
 			),
 		},
 		{
-			name:    "(a b c)",
-			wantN:   "(a b c)",
+			name:    "(#0$ \"a\")",
+			wantN:   "(#0$ \"a\")",
 			wantErr: "",
-			e: list(
-				token("a"),
-				token("b"),
-				token("c"),
-			),
-		},
-		{
-			name:    "(1 $2 -$3 -4)",
-			wantN:   "(1 $2 -$3 -4)",
-			wantErr: "",
-			e: list(
-				intb10(1),
-				intb16(2),
-				intb16(-3),
-				intb10(-4),
-			),
-		},
-		{
-			name:    "(#0$ a)",
-			wantN:   "(#0$ a)",
-			wantErr: "",
-			e:       list(octetsHex([]byte{}), token("a")),
+			e:       mkList(mkOctets([]byte{}), mkString("a")),
 		},
 		{
 			name:    "(#1$61)",
 			wantN:   "(#1$61)",
 			wantErr: "",
-			e:       list(octetsHex([]byte("a"))),
+			e:       mkList(mkOctets([]byte("a"))),
 		},
 		{
 			name:    `("")`,
 			wantN:   `("")`,
 			wantErr: "",
-			e:       list(octetsQuoted("")),
+			e:       mkList(mkString("")),
 		},
 		{
 			name:    `("a")`,
 			wantN:   `("a")`,
 			wantErr: "",
-			e:       list(octetsQuoted("a")),
+			e:       mkList(mkString("a")),
 		},
 		{
 			name:    `("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")`,
 			wantN:   `("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")`,
 			wantErr: "",
-			e:       list(octetsQuoted("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")),
+			e:       mkList(mkString("abcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=")),
 		},
 		{
 			name:    "(\"abc\\ndef\")",
 			wantN:   "(\"abc\\ndef\")",
 			wantErr: "",
-			e:       list(octetsQuoted("abc\ndef")),
+			e:       mkList(mkString("abc\ndef")),
 		},
 		{
 			name:    `("\x1f")`,
 			wantN:   `("\x1f")`,
 			wantErr: "",
-			e:       list(octetsQuoted("\x1f")),
+			e:       mkList(mkString("\x1f")),
 		},
 		{
 			name:    `("cba\r\n\tq")`,
 			wantN:   `("cba\r\n\tq")`,
 			wantErr: "",
-			e:       list(octetsQuoted("cba\r\n\tq")),
-		},
-		{
-			name:    "command",
-			wantN:   "(if (eq hash \"0011223344\") (read wram $d80 16))",
-			wantErr: "",
-			e: list(
-				token("if"),
-				list(
-					token("eq"),
-					token("hash"),
-					octetsQuoted("0011223344"),
-				),
-				list(
-					token("read"),
-					token("wram"),
-					intb16(0xd80),
-					intb10(16),
-				),
-			),
+			e:       mkList(mkString("cba\r\n\tq")),
 		},
 	}
 

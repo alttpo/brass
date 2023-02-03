@@ -36,49 +36,33 @@ local function decode_atom(s, ms)
         return decode_list(s, m)
     end
 
-    -- check for token:
-    me = s:match('^@?[%u%l_%./%?!][%u%l%d%-_%./%?!]*()', ms)
+    -- check for nil:
+    me = s:match('^nil()', ms)
     if me ~= nil then
-        local v = s:sub(ms, me-1)
-        if v:sub(1,1) == '@' then
-            -- escaped token:
-            return v:sub(2), me, nil
-        elseif v == 'nil' then
-            return { kind = 'nil' }, me, nil
-        elseif v == 'true' then
-            return true, me, nil
-        elseif v == 'false' then
-            return false, me, nil
-        else
-            -- regular token:
-            return v, me, nil
-        end
+        return { __brass_kind = 'nil' }, me, nil
     end
 
-    -- check for decimal integer:
-    me = s:match('^[%-%+]?%d+()', ms)
+    -- check for true:
+    me = s:match('^true()', ms)
     if me ~= nil then
-        local v = s:sub(ms, me-1)
-        if g == '+' then
-            return { kind = 'uint-b10'; uint = tonumber(v:sub(2), 10) }, me, nil
-        elseif g == '-' then
-            return { kind = 'int-b10'; int = -tonumber(v:sub(2), 10) }, me, nil
-        else
-            return { kind = 'int-b10'; int = tonumber(v:sub(1), 10) }, me, nil
-        end
+        return true, me, nil
+    end
+
+    -- check for false:
+    me = s:match('^false()', ms)
+    if me ~= nil then
+        return false, me, nil
     end
 
     -- check for hexadecimal integer:
-    me = s:match('^[%-%+]?%$[0-9a-f]+()', ms)
+    me = s:match('^[%-]?%$[0-9a-f]+()', ms)
     if me ~= nil then
         local v = s:sub(ms, me-1)
         local g = v:sub(1,1)
-        if g == '+' then
-            return { kind = 'uint-b16'; uint = tonumber(v:sub(3), 16) }, me, nil
-        elseif g == '-' then
-            return { kind = 'int-b16'; int = -tonumber(v:sub(3), 16) }, me, nil
+        if g == '-' then
+            return -tonumber(v:sub(3), 16), me, nil
         else
-            return { kind = 'int-b16'; int = tonumber(v:sub(2), 16) }, me, nil
+            return tonumber(v:sub(2), 16), me, nil
         end
     end
 
@@ -96,21 +80,23 @@ local function decode_atom(s, ms)
 
         -- build list of octet values:
         local l = {}
+        l.__brass_kind = 'octets'
+
         for i = 0,len-1 do
             l[#l+1] = tonumber(s:sub(me,me+1), 16)
             me = me + 2
         end
 
-        return { kind = 'hex'; octets = l }, me, nil
+        return l, me, nil
     end
 
-    -- check for quoted-octets:
+    -- check for string:
     me = s:match('^"[^"\\\r\n]*"()', ms)
     if me ~= nil then
-        -- trivial quoted-octets with no escaped chars:
-        return { kind = 'quoted'; str = s:sub(ms+1,me-2) }, me, nil
+        -- trivial string with no escaped chars:
+        return s:sub(ms+1,me-2), me, nil
     elseif s:sub(ms, ms) == '"' then
-        -- more complex quoted-octets with escaped chars:
+        -- more complex string with escaped chars:
         ms = ms + 1
         local l = {}
         while ms <= #s do
@@ -123,7 +109,7 @@ local function decode_atom(s, ms)
 
             local ec = s:sub(me,me)
             if ec == '"' then
-                return { kind = 'quoted'; str = table.concat(l) }, me+1, nil
+                return table.concat(l), me+1, nil
             elseif ec == '\\' then
                 -- handle escapes:
                 ms = me + 1
@@ -158,17 +144,13 @@ local function decode_atom(s, ms)
 end
 
 decode_list = function (s, ms)
-    -- find balanced ( and ) positions:
-    local le = s:match('^%b()()', ms)
-    if le == nil then
-        return nil, ms, { err = 'could not find end of list' }
-    end
-
     local l = {}
+    l.__brass_kind = 'list'
+
     ms = ms + 1
-    while ms <= le do
+    while ms <= #s do
         -- skip whitespace
-        local we = s:match('^[% %\t]*()', ms)
+        local we = s:match('^[% ]*()', ms)
         if we ~= nil then
             ms = we
         end
@@ -204,20 +186,36 @@ function brass.encode(e)
     elseif e == false then
         return 'false'
     elseif type(e) == 'string' then
-        -- token
-        if e == "nil" then
-            return "@nil"
-        elseif e == "true" then
-            return "@true"
-        elseif e == "false" then
-            return "@false"
+        local s = e
+        -- escape characters:
+        return '"' .. s:gsub('[^%w ]', function (m)
+            local b = string.byte(m)
+            if b == 9 then
+                return '\\t'
+            elseif b == 10 then
+                return '\\n'
+            elseif b == 13 then
+                return '\\r'
+            elseif b == 34 then
+                return '\\"'
+            elseif b == 92 then
+                return '\\\\'
+            elseif b < 32 or b >= 128 then
+                return string.format('\\x%02x', b)
+            else
+                return m
+            end
+        end) .. '"'
+    elseif type(e) == 'number' then
+        if e < 0 then
+            return string.format('-$%x', -e)
         else
-            return e
+            return string.format('$%x', e)
         end
     elseif type(e) == 'table' then
-        local k = e.kind
-        if k == nil then
-            -- list kind
+        if e.__brass_kind == 'nil' then
+            return 'nil'
+        elseif e.__brass_kind == 'list' then
             local l = {}
             for i=1,#e do
                 l[#l+1] = brass.encode(e[i])
@@ -227,47 +225,24 @@ function brass.encode(e)
                 l[#l] = nil
             end
             return '(' .. table.concat(l) .. ')'
-        elseif k == 'nil' then
-            return "nil"
-        elseif k == 'int-b10' then
-            return string.format('%d', e.int)
-        elseif k == 'uint-b10' then
-            return string.format('%d', e.int)
-        elseif k == 'int-b16' then
-            if e.int < 0 then
-                return string.format('-$%x', -e.int)
-            else
-                return string.format('$%x', e.int)
-            end
-        elseif k == 'uint-b16' then
-            return string.format('$%x', e.int)
-        elseif k == 'hex' then
+        elseif e.__brass_kind == 'octets' then
             local l = {}
-            for i=1,#e.octets do
-                l[#l+1] = string.format('%02x', e.octets[i])
+            for i=1,#e do
+                l[#l+1] = string.format('%02x', e[i])
             end
-            return '#' .. string.format('%x', #e.octets) .. '$' .. table.concat(l)
-        elseif k == 'quoted' then
-            local s = e.str
-            -- escape characters:
-            return '"' .. s:gsub('[^%w ]', function (m)
-                local b = string.byte(m)
-                if b == 9 then
-                    return '\\t'
-                elseif b == 10 then
-                    return '\\n'
-                elseif b == 13 then
-                    return '\\r'
-                elseif b == 34 then
-                    return '\\"'
-                elseif b == 92 then
-                    return '\\\\'
-                elseif b < 32 or b >= 128 then
-                    return string.format('\\x%02x', b)
-                else
-                    return m
+            return '#' .. string.format('%x', #e) .. '$' .. table.concat(l)
+        elseif e.__brass_kind == 'map' then
+            local l = {}
+            for k,v in pairs(e) do
+                if k ~= '__brass_kind' then
+                    l[#l+1] = '('
+                    l[#l+1] = brass.encode(k)
+                    l[#l+1] = ' '
+                    l[#l+1] = brass.encode(v)
+                    l[#l+1] = ')'
                 end
-            end) .. '"'
+            end
+            return '{' .. table.concat(l, ' ') .. '}'
         end
     end
 end

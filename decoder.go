@@ -8,6 +8,7 @@ import (
 )
 
 var ErrUnexpectedCharacter = errors.New("unexpected character")
+var ErrNotPrimitive = errors.New("unexpected primitive type")
 
 type Decoder struct {
 	s io.ByteScanner
@@ -18,10 +19,12 @@ func NewDecoder(s io.ByteScanner) *Decoder {
 }
 
 func (d *Decoder) Decode() (e *SExpr, err error) {
-	return d.decodeList()
+	e = &SExpr{}
+	err = d.decodeList(e)
+	return
 }
 
-func (d *Decoder) decodeList() (e *SExpr, err error) {
+func (d *Decoder) decodeList(e *SExpr) (err error) {
 	var c byte
 
 	c, err = d.s.ReadByte()
@@ -33,10 +36,9 @@ func (d *Decoder) decodeList() (e *SExpr, err error) {
 		return
 	}
 
-	e = &SExpr{
-		kind: KindList,
-		list: make([]*SExpr, 0, 10),
-	}
+	e.reset()
+	e.kind = KindList
+	e.list = make([]*SExpr, 0, 10)
 	for {
 		c, err = d.s.ReadByte()
 		if err != nil {
@@ -55,8 +57,8 @@ func (d *Decoder) decodeList() (e *SExpr, err error) {
 			return
 		}
 
-		var child *SExpr
-		child, err = d.decodeNode()
+		var child *SExpr = &SExpr{}
+		err = d.decodeNode(child, child)
 		if err != nil {
 			return
 		}
@@ -68,7 +70,7 @@ func (d *Decoder) decodeList() (e *SExpr, err error) {
 	}
 }
 
-func (d *Decoder) decodeMap() (e *SExpr, err error) {
+func (d *Decoder) decodeMap(e *SExpr) (err error) {
 	var c byte
 
 	c, err = d.s.ReadByte()
@@ -80,10 +82,9 @@ func (d *Decoder) decodeMap() (e *SExpr, err error) {
 		return
 	}
 
-	e = &SExpr{
-		kind: KindList,
-		list: make([]*SExpr, 0, 10),
-	}
+	e.reset()
+	e.kind = KindMap
+	e.dict = make(map[SExprPrimitive]*SExpr, 10)
 	for {
 		c, err = d.s.ReadByte()
 		if err != nil {
@@ -102,20 +103,52 @@ func (d *Decoder) decodeMap() (e *SExpr, err error) {
 			return
 		}
 
-		var child *SExpr
-		child, err = d.decodeNode()
+		var key SExprPrimitive
+		var value *SExpr = &SExpr{}
+		err = d.decodeMapEntry(&key, value)
 		if err != nil {
 			return
 		}
-		if child == nil {
-			continue
-		}
 
-		e.list = append(e.list, child)
+		e.dict[key] = value
 	}
 }
 
-func (d *Decoder) decodeNode() (e *SExpr, err error) {
+func (d *Decoder) decodeMapEntry(key MutablePrimitive, value *SExpr) (err error) {
+	var c byte
+
+	c, err = d.s.ReadByte()
+	if err != nil {
+		return
+	}
+	if c != '(' {
+		err = ErrUnexpectedCharacter
+		return
+	}
+
+	err = d.decodeNode(key, nil)
+	if err != nil {
+		return
+	}
+
+	err = d.decodeNode(value, value)
+	if err != nil {
+		return
+	}
+
+	c, err = d.s.ReadByte()
+	if err != nil {
+		return
+	}
+	if c != ')' {
+		err = ErrUnexpectedCharacter
+		return
+	}
+
+	return
+}
+
+func (d *Decoder) decodeNode(p MutablePrimitive, e *SExpr) (err error) {
 	var c byte
 	for {
 		c, err = d.s.ReadByte()
@@ -131,20 +164,38 @@ func (d *Decoder) decodeNode() (e *SExpr, err error) {
 			return
 		}
 		if c == '(' {
-			err = d.s.UnreadByte()
-			if err != nil {
+			if e != nil {
+				err = d.s.UnreadByte()
+				if err != nil {
+					return
+				}
+
+				err = d.decodeList(e)
 				return
 			}
-
-			e, err = d.decodeList()
+			err = ErrNotPrimitive
 			return
 		}
+		if c == '{' {
+			if e != nil {
+				err = d.s.UnreadByte()
+				if err != nil {
+					return
+				}
+
+				err = d.decodeMap(e)
+				return
+			}
+			err = ErrNotPrimitive
+			return
+		}
+
 		if c == '#' {
-			e, err = d.decodeHexOctets()
+			err = d.decodeHexOctets(p)
 			return
 		}
 		if c == '"' {
-			e, err = d.decodeQuotedOctets()
+			err = d.decodeString(p)
 			return
 		}
 		if c == 'n' {
@@ -163,7 +214,8 @@ func (d *Decoder) decodeNode() (e *SExpr, err error) {
 				}
 			}
 
-			e, err = &SExpr{kind: KindNil}, nil
+			err = nil
+			p.SetNil()
 			return
 		}
 		if c == 't' {
@@ -182,7 +234,8 @@ func (d *Decoder) decodeNode() (e *SExpr, err error) {
 				}
 			}
 
-			e, err = &SExpr{kind: KindBool, integer: -1}, nil
+			err = nil
+			p.SetBool(true)
 			return
 		}
 		if c == 'f' {
@@ -201,7 +254,8 @@ func (d *Decoder) decodeNode() (e *SExpr, err error) {
 				}
 			}
 
-			e, err = &SExpr{kind: KindBool, integer: 0}, nil
+			err = nil
+			p.SetBool(false)
 			return
 		}
 
@@ -216,7 +270,7 @@ func (d *Decoder) decodeNode() (e *SExpr, err error) {
 		}
 
 		if c == '$' {
-			e, err = d.decodeIntB16(negate)
+			err = d.decodeIntB16(p, negate)
 			return
 		}
 
@@ -225,7 +279,7 @@ func (d *Decoder) decodeNode() (e *SExpr, err error) {
 	}
 }
 
-func (d *Decoder) decodeIntB16(negate bool) (e *SExpr, err error) {
+func (d *Decoder) decodeIntB16(e MutablePrimitive, negate bool) (err error) {
 	b := bytes.Buffer{}
 	b.Grow(17)
 	if negate {
@@ -253,12 +307,7 @@ func (d *Decoder) decodeIntB16(negate bool) (e *SExpr, err error) {
 		// signed:
 		var i64 int64
 		i64, err = strconv.ParseInt(b.String(), 16, 64)
-		e = &SExpr{
-			kind:    KindInteger,
-			integer: i64,
-			octets:  "",
-			list:    nil,
-		}
+		e.SetInt64(i64)
 		return
 	}
 }
@@ -267,7 +316,7 @@ func isHexDigit(c byte) bool {
 	return ('0' <= c && c <= '9') || ('a' <= c && c <= 'f')
 }
 
-func (d *Decoder) decodeHexOctets() (e *SExpr, err error) {
+func (d *Decoder) decodeHexOctets(e MutablePrimitive) (err error) {
 	// parse hex digits up to '$' as size:
 	sizeB := bytes.Buffer{}
 	var c byte
@@ -310,10 +359,7 @@ func (d *Decoder) decodeHexOctets() (e *SExpr, err error) {
 		data.WriteByte(b)
 	}
 
-	e = &SExpr{
-		kind:   KindOctets,
-		octets: data.String(),
-	}
+	e.SetOctets(data.String())
 	return
 }
 
@@ -351,7 +397,7 @@ func (d *Decoder) readHexByte() (b byte, err error) {
 	return
 }
 
-func (d *Decoder) decodeQuotedOctets() (e *SExpr, err error) {
+func (d *Decoder) decodeString(e MutablePrimitive) (err error) {
 	b := bytes.Buffer{}
 
 	var c byte
@@ -402,9 +448,6 @@ func (d *Decoder) decodeQuotedOctets() (e *SExpr, err error) {
 		b.WriteByte(c)
 	}
 
-	e = &SExpr{
-		kind:   KindString,
-		octets: b.String(),
-	}
+	e.SetString(b.String())
 	return
 }

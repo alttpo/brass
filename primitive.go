@@ -5,26 +5,81 @@ import (
 	"strings"
 )
 
+type Primitive interface {
+	Kind() Kind
+	IsNil() bool
+	AsBool() bool
+	AsInt64() int64
+	AsString() string
+	AsOctets() []byte
+}
+
+type MutablePrimitive interface {
+	SetNil()
+	SetBool(v bool)
+	SetInt64(v int64)
+	SetString(v string)
+	SetOctets(v string)
+}
+
 type SExprPrimitive struct {
 	kind    Kind
 	integer int64
 	octets  string
 }
 
-func (e SExprPrimitive) Kind() Kind { return e.kind }
+func (e *SExprPrimitive) reset() {
+	e.integer = 0
+	e.octets = ""
+}
 
-func (e SExprPrimitive) IsNil() bool {
+func (e *SExprPrimitive) SetNil() {
+	e.reset()
+	e.kind = KindNil
+}
+
+func (e *SExprPrimitive) SetBool(v bool) {
+	e.reset()
+	e.kind = KindBool
+	if v {
+		e.integer = -1
+	} else {
+		e.integer = 0
+	}
+}
+
+func (e *SExprPrimitive) SetInt64(v int64) {
+	e.reset()
+	e.kind = KindInteger
+	e.integer = v
+}
+
+func (e *SExprPrimitive) SetString(v string) {
+	e.reset()
+	e.kind = KindString
+	e.octets = v
+}
+
+func (e *SExprPrimitive) SetOctets(v string) {
+	e.reset()
+	e.kind = KindOctets
+	e.octets = v
+}
+
+func (e *SExprPrimitive) Kind() Kind { return e.kind }
+
+func (e *SExprPrimitive) IsNil() bool {
 	return e.kind == KindNil
 }
 
-func (e SExprPrimitive) AsBool() bool {
+func (e *SExprPrimitive) AsBool() bool {
 	if e.kind != KindBool {
 		panic("must be KindBool")
 	}
 	return e.integer != 0
 }
 
-func (e SExprPrimitive) AsInt64() int64 {
+func (e *SExprPrimitive) AsInt64() int64 {
 	kind := e.kind
 	if kind != KindInteger {
 		panic("must be KindInteger")
@@ -32,7 +87,7 @@ func (e SExprPrimitive) AsInt64() int64 {
 	return e.integer
 }
 
-func (e SExprPrimitive) AsString() string {
+func (e *SExprPrimitive) AsString() string {
 	kind := e.kind
 	if kind != KindString {
 		panic("must be KindString")
@@ -40,7 +95,7 @@ func (e SExprPrimitive) AsString() string {
 	return e.octets
 }
 
-func (e SExprPrimitive) AsOctets() []byte {
+func (e *SExprPrimitive) AsOctets() []byte {
 	kind := e.kind
 	if kind != KindOctets {
 		panic("must be KindOctets")
@@ -48,7 +103,7 @@ func (e SExprPrimitive) AsOctets() []byte {
 	return []byte(e.octets)
 }
 
-func (e SExprPrimitive) AppendTo(sb *strings.Builder) {
+func (e *SExprPrimitive) AppendTo(sb *strings.Builder) {
 	switch e.kind {
 	case KindNil:
 		sb.WriteString("nil")

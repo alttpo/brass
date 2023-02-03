@@ -18,15 +18,6 @@ const (
 	KindMap
 )
 
-type Primitive interface {
-	Kind() Kind
-	IsNil() bool
-	AsBool() bool
-	AsInt64() int64
-	AsString() string
-	AsOctets() []byte
-}
-
 type AppendableTo interface {
 	AppendTo(sb *strings.Builder)
 }
@@ -127,10 +118,10 @@ func (e *SExpr) SetString(str string) {
 	e.octets = str
 }
 
-func (e *SExpr) SetOctets(octets []byte) {
+func (e *SExpr) SetOctets(octets string) {
 	e.reset()
 	e.kind = KindOctets
-	e.octets = string(octets)
+	e.octets = octets
 }
 
 func (e *SExpr) SetInt64(value int64) {
@@ -148,11 +139,11 @@ func (e *SExpr) String() string {
 func (e *SExpr) AppendTo(sb *strings.Builder) {
 	switch e.kind {
 	case KindNil, KindBool, KindInteger, KindOctets, KindString:
-		SExprPrimitive{
+		(&SExprPrimitive{
 			kind:    e.kind,
 			integer: e.integer,
 			octets:  e.octets,
-		}.AppendTo(sb)
+		}).AppendTo(sb)
 		return
 	case KindList:
 		sb.WriteByte('(')

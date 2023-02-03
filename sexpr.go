@@ -176,3 +176,17 @@ func (e *SExpr) AppendTo(sb *strings.Builder) {
 		panic(fmt.Errorf("unimplemented kind"))
 	}
 }
+
+func MakeNil() *SExpr { return &SExpr{kind: KindNil} }
+func MakeBool(v bool) *SExpr {
+	if v {
+		return &SExpr{kind: KindBool, integer: -1}
+	} else {
+		return &SExpr{kind: KindBool, integer: 0}
+	}
+}
+func MakeInt64(v int64) *SExpr                   { return &SExpr{kind: KindInteger, integer: v} }
+func MakeString(v string) *SExpr                 { return &SExpr{kind: KindString, octets: v} }
+func MakeOctets(v []byte) *SExpr                 { return &SExpr{kind: KindOctets, octets: string(v)} }
+func MakeList(v []*SExpr) *SExpr                 { return &SExpr{kind: KindList, list: v} }
+func MakeMap(v map[SExprPrimitive]*SExpr) *SExpr { return &SExpr{kind: KindMap, dict: v} }

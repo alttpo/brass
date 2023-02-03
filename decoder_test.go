@@ -267,13 +267,18 @@ func TestDecoder_Decode(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "({(\"abc\" 1) (\"def\" 2)})",
+			name: "({(\"abc\" $1) (\"def\" $2)})",
 			fields: fields{
-				s: bytes.NewBuffer([]byte("({(\"abc\" 1) (\"def\" 2)})")),
+				s: bytes.NewBuffer([]byte("({(\"abc\" $1) (\"def\" $2)})")),
 			},
 			wantE: &SExpr{
 				kind: KindList,
-				list: []*SExpr{},
+				list: []*SExpr{
+					MakeMap(map[SExprPrimitive]*SExpr{
+						PrimitiveString("abc"): MakeInt64(1),
+						PrimitiveString("def"): MakeInt64(2),
+					}),
+				},
 			},
 			wantErr: false,
 		},

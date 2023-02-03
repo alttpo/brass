@@ -158,14 +158,16 @@ func (e *SExprPrimitive) AppendTo(sb *strings.Builder) {
 	}
 }
 
-func KeyOfNil() SExprPrimitive { return SExprPrimitive{kind: KindNil} }
-func KeyOfBool(v bool) SExprPrimitive {
+func PrimitiveNil() SExprPrimitive { return SExprPrimitive{kind: KindNil} }
+func PrimitiveBool(v bool) SExprPrimitive {
 	if v {
 		return SExprPrimitive{kind: KindBool, integer: -1}
 	} else {
 		return SExprPrimitive{kind: KindBool, integer: 0}
 	}
 }
-func KeyOfInt64(v int64) SExprPrimitive   { return SExprPrimitive{kind: KindBool, integer: v} }
-func KeyOfString(v string) SExprPrimitive { return SExprPrimitive{kind: KindString, octets: v} }
-func KeyOfOctets(v []byte) SExprPrimitive { return SExprPrimitive{kind: KindOctets, octets: string(v)} }
+func PrimitiveInt64(v int64) SExprPrimitive   { return SExprPrimitive{kind: KindBool, integer: v} }
+func PrimitiveString(v string) SExprPrimitive { return SExprPrimitive{kind: KindString, octets: v} }
+func PrimitiveOctets(v []byte) SExprPrimitive {
+	return SExprPrimitive{kind: KindOctets, octets: string(v)}
+}
